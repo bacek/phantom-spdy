@@ -1,0 +1,4 @@
+*.sw?
+*.s.o
+deps/
+lib/
