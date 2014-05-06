@@ -3,7 +3,7 @@
 #include <phantom/module.H>
 #include <pd/base/config.H>
 
-#include "../spdy/spdy_framer.H"
+#include "framer/spdy_framer.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
@@ -22,7 +22,7 @@ public:
 	virtual void do_fini() { }
 public:
     // typedef required for config magic
-    typedef method_stream::spdy_framer_t spdy_framer_t;
+    typedef io_benchmark::spdy_framer_t spdy_framer_t;
     typedef method_stream::source_t source_t;
     struct config_t {
         config_binding_type_ref(spdy_framer_t);
@@ -46,10 +46,9 @@ private:
 
 namespace spdy_source_filter {
 config_binding_sname(spdy_source_filter_t);
-config_binding_type(spdy_source_filter_t, spdy_framer_t);
 config_binding_value(spdy_source_filter_t, framer);
-config_binding_type(spdy_source_filter_t, source_t);
 config_binding_value(spdy_source_filter_t, source);
+
 config_binding_cast(spdy_source_filter_t, source_t);
 config_binding_ctor(source_t, spdy_source_filter_t);
 }
@@ -60,13 +59,16 @@ spdy_source_filter_t::spdy_source_filter_t(string_t const &name, config_t const 
 
 bool spdy_source_filter_t::get_request(in_segment_t& request,
                                        in_segment_t& tag) const {
+    log_debug("source filter");
     return source.get_request(request, tag);
 }
 
 
 void spdy_source_filter_t::config_t::check(in_t::ptr_t const &ptr) const {
     if (!source)
-        config::error(ptr, "Original 'source' required for spdy_source_filter");
+        config::error(ptr, "Original 'source' is required for spdy_source_filter");
+    if (!framer)
+        config::error(ptr, "SPDY 'framer' is required for spdy_source_filter");
 }
 
 }}}  // namespace phantom::io_benchmark::method_stream
