@@ -7,6 +7,8 @@
 
 #include <spdylay/spdylay.h>
 
+#include <functional>
+
 #pragma GCC visibility push(default)
 
 namespace phantom { namespace io_benchmark {
@@ -34,9 +36,21 @@ public:
         void check(in_t::ptr_t const &) const;
     };
 
-    spdy_framer_t();
     spdy_framer_t(string_t const &, config_t const &);
 	~spdy_framer_t();
+
+    // Callback to be invoked from spdylay to receive data. Should be called
+    // from proto_t::reply_parse.
+    // Should return amount of bytes "received".
+    typedef std::function<ssize_t(const uint8_t* data, size_t length, int flags)> recv_callback_t;
+
+    // Callback to call to send data
+    // Should return amount of bytes "written".
+    typedef std::function<ssize_t(const uint8_t* data, size_t length, int flags)> send_callback_t;
+
+    // Prepare callbacks, create spdy session.
+    // Returns true if everything is ok.
+    bool start(recv_callback_t rc, send_callback_t sc);
 
 public:
     // Preconfigured SPDY version
@@ -44,6 +58,11 @@ public:
 
     // Actual SPDY implementation
     spdylay_session* session;
+
+public:
+    spdylay_session_callbacks callbacks;
+    recv_callback_t recv_callback;
+    send_callback_t send_callback;
 };
 
 }}  // namespace phantom::io_benchmark

@@ -4,7 +4,7 @@
 #include <phantom/io_benchmark/method_stream/method_stream.H>
 #include <pd/base/config.H>
 
-#include "spdy_framer.H"
+#include "framer/spdy_framer.H"
 
 namespace phantom { namespace io_benchmark {
 
@@ -63,6 +63,10 @@ config_binding_ctor(method_t, spdy_method_stream_t);
 
 spdy_method_stream_t::spdy_method_stream_t(string_t const& sname, config_t const &config)
     : method_t(sname), method(*config.method), framer(*config.framer) {
+
+    spdy_framer_t::recv_callback_t rv;
+    spdy_framer_t::send_callback_t sn;
+    framer.start(rv, sn);
 }
 
 spdy_method_stream_t::~spdy_method_stream_t() {

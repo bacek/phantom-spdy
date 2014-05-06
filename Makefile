@@ -4,6 +4,8 @@ include phantom/Makefile.inc
 
 # ===
 
+OPT=0
+
 ifeq ($(OPT),0)
 CPPDEFS += -D DEBUG_ALLOC
 endif

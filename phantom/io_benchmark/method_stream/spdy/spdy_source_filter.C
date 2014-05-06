@@ -1,7 +1,10 @@
 
+#include <vector>
+
 #include <phantom/io_benchmark/method_stream/source.H>
 #include <phantom/module.H>
 #include <pd/base/config.H>
+#include <pd/base/config_list.H>
 
 #include "framer/spdy_framer.H"
 
@@ -30,6 +33,7 @@ public:
 
         config::objptr_t<spdy_framer_t> framer;
         config::objptr_t<source_t> source;
+        config::list_t<string_t> headers;
 
         config_t() throw() : framer() {}
 
@@ -40,27 +44,71 @@ public:
     inline ~spdy_source_filter_t() {}
 
 private:
-    spdy_framer_t* framer;
     source_t& source;
+    spdy_framer_t& framer;
+
+    // It's awful hack...
+    std::vector<char*> nv;
+    std::vector<std::vector<char>> nv_data;
 };
 
 namespace spdy_source_filter {
 config_binding_sname(spdy_source_filter_t);
 config_binding_value(spdy_source_filter_t, framer);
 config_binding_value(spdy_source_filter_t, source);
+config_binding_value(spdy_source_filter_t, headers);
 
 config_binding_cast(spdy_source_filter_t, source_t);
 config_binding_ctor(source_t, spdy_source_filter_t);
 }
 
-spdy_source_filter_t::spdy_source_filter_t(string_t const &name, config_t const &config) :
-    source_t(name), source(*config.source) {
+spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
+                                           config_t const& config)
+    : source_t(name),
+      source(*config.source),
+      framer(*config.framer) {
+
+    for (auto ptr = config.headers._ptr(); ptr; ++ptr) {
+        nv_data.emplace_back(ptr.val().ptr(), ptr.val().ptr() + ptr.val().size());
+        nv_data.rbegin()->push_back('\0');
+        nv.push_back(nv_data.back().data());
+    }
 }
 
 bool spdy_source_filter_t::get_request(in_segment_t& request,
                                        in_segment_t& tag) const {
     log_debug("source filter");
-    return source.get_request(request, tag);
+    in_segment_t original_request;
+    if (!source.get_request(original_request, tag)) {
+        return false;
+    }
+
+    // Assume that request is just url to fetch.
+    // TODO Implement proper parsing. Yours truly, CO.
+    // +2 for ':path' and path
+    // +1 for nullptr
+    const char *nv_send[nv.size() + 3];
+    nv_send[0] = ":path";
+
+    in_t::ptr_t ptr = original_request;
+    // Meh. operator bool actually initialize ptr...
+    if (!ptr) {
+        log_error("Meh!");
+        return false;
+    }
+    auto p = ptr.__chunk();
+    std::vector<char> ps { p.ptr(), p.ptr() + p.size() };
+    ps.push_back('\0');
+    nv_send[1] = ps.data();
+
+    //nv_send[1] = original_request
+    std::copy(nv.begin(), nv.end(), nv_send + 2);
+    nv_send[nv.size() + 2] = nullptr;
+
+    (void)request;
+
+    int rv = spdylay_submit_request(framer.session, 0, nv_send, nullptr, nullptr);
+    return rv == 0;
 }
 
 
