@@ -2,11 +2,14 @@
 // Author: Vasily Chekalkin <bacek@yandex-team.ru>
 
 #include <phantom/io_benchmark/method_stream/method_stream.H>
+#include <phantom/module.H>
 #include <pd/base/config.H>
 
 #include "framer/spdy_framer.H"
 
 namespace phantom { namespace io_benchmark {
+
+MODULE(io_benchmark_method_stream_spdy);
 
 // SPDY wrapper for method_t to hold additional variables. E.g. "framer"
 class spdy_method_stream_t : public method_t {
@@ -49,10 +52,7 @@ private:
 
 spdy_method_stream_t::spdy_method_stream_t(string_t const& sname, config_t const &config)
     : method_t(sname), method(*config.method), framer(*config.framer) {
-
-    spdy_framer_t::recv_callback_t rv;
-    spdy_framer_t::send_callback_t sn;
-    framer.start(rv, sn);
+    framer.start();
 }
 
 spdy_method_stream_t::~spdy_method_stream_t() {

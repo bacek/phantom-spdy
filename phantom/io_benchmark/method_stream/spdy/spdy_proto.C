@@ -1,8 +1,43 @@
+#include "spdy_proto.H"
 
-#include <phantom/module.H>
+#include <pd/base/config.H>
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
-MODULE(io_benchmark_method_stream_spdy);
+spdy_proto_t::spdy_proto_t(string_t const &sname, config_t const &config)
+    : proto_t(sname), framer(*config.framer) {
+}
+
+bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
+                               in_segment_t const& request,
+                               unsigned int& res_code,
+                               logger_t::level_t& lev) const {
+    (void)request;
+    if (!framer.receive_data(ptr))
+        return false;
+
+    res_code = 200;
+    lev = logger_t::all;
+
+    return true;
+}
+
+
+void spdy_proto_t::config_t::check(in_t::ptr_t const &ptr) const {
+    if (!framer)
+        config::error(ptr, "SPDY 'framer' is required for spdy_proto_t");
+}
 
 }}}  // namespace phantom::io_benchmark::method_stream
+
+namespace pd { namespace config {
+using phantom::io_benchmark::method_stream::spdy_proto_t;
+using phantom::io_benchmark::method_stream::proto_t;
+
+config_binding_sname(spdy_proto_t);
+config_binding_value(spdy_proto_t, framer);
+
+config_binding_cast(spdy_proto_t, proto_t);
+config_binding_ctor(proto_t, spdy_proto_t);
+}}
+

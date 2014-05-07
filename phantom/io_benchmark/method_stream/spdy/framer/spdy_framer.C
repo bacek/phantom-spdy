@@ -30,16 +30,40 @@ ssize_t do_send(spdylay_session* session,
             const uint8_t* data, size_t length, int flags,
             void *user_data) {
     (void)session;
+    (void)flags;
     spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
-    return self->send_callback(data, length, flags);
+
+    string_t::ctor_t buf(length);
+    for (size_t i = 0; i < length; ++i)
+        buf(*data++);
+    string_t s = buf;
+    in_segment_list_t t;
+    t.append(s);
+    self->send_buffer = t;
+
+    return length;
 }
 
-ssize_t do_receive(spdylay_session* session,
-               uint8_t* buf, size_t length, int flags,
-               void* user_data) {
+void on_ctrl_recv_callback(spdylay_session* session,
+                              spdylay_frame_type type,
+                              spdylay_frame* frame,
+                              void* user_data) {
     (void)session;
-    spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
-    return self->recv_callback(buf, length, flags);
+    (void)type;
+    (void)user_data;
+    (void)frame;
+    log_debug("SPDY: Got CONTROL frame type %d", type);
+}
+
+void on_data_recv_callback(spdylay_session* session,
+                              uint8_t flags,
+                              int32_t stream_id,
+                              int32_t length,
+                              void* user_data) {
+    (void)session;
+    (void)flags;
+    (void)user_data;
+    log_debug("SPDY: Got DATA frame for stream %d length %d", stream_id, length);
 }
 
 }
@@ -50,17 +74,33 @@ spdy_framer_t::spdy_framer_t(string_t const &, config_t const &config)
 
 spdy_framer_t::~spdy_framer_t() {}
 
-bool spdy_framer_t::start(recv_callback_t rc, send_callback_t sc) {
-    recv_callback = std::move(rc);
-    send_callback = std::move(sc);
+bool spdy_framer_t::start() {
 
     callbacks.send_callback = &do_send;
-    callbacks.recv_callback = &do_receive;
+    callbacks.on_ctrl_recv_callback = &on_ctrl_recv_callback;
+    callbacks.on_data_recv_callback = &on_data_recv_callback;
 
     // TODO Add more callbacks
 
     int rv = spdylay_session_client_new(&session, spdy_version, &callbacks, this);
     return rv == 0;
+}
+
+
+bool spdy_framer_t::receive_data(in_t::ptr_t& in) {
+      // recv_buffer = in;
+      if (!in)
+        return false;
+      str_t s = in.__chunk();
+      int processed = spdylay_session_mem_recv(
+          session, reinterpret_cast<const uint8_t*>(s.ptr()), s.size());
+      return processed == 0;
+}
+
+bool spdy_framer_t::send_data(in_segment_t &out) {
+    spdylay_session_send(session);
+    out = send_buffer;
+    return true;
 }
 
 

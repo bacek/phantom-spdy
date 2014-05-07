@@ -98,7 +98,10 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
     (void)request;
 
     int rv = spdylay_submit_request(framer.session, 0, nv_send, nullptr, nullptr);
-    return rv == 0;
+    if (rv != 0)
+        return false;
+
+    return framer.send_data(request);
 }
 
 
