@@ -46,20 +46,6 @@ private:
 
 
 
-// config binding
-namespace method_stream {
-config_binding_sname(spdy_method_stream_t);
-
-config_binding_type(spdy_method_stream_t, method_t);
-config_binding_value(spdy_method_stream_t, method);
-config_binding_type(spdy_method_stream_t, spdy_framer_t);
-config_binding_value(spdy_method_stream_t, framer);
-
-config_binding_cast(spdy_method_stream_t, method_t);
-config_binding_ctor(method_t, spdy_method_stream_t);
-}
-// end of config binding
-
 
 spdy_method_stream_t::spdy_method_stream_t(string_t const& sname, config_t const &config)
     : method_t(sname), method(*config.method), framer(*config.framer) {
@@ -93,3 +79,22 @@ void spdy_method_stream_t::config_t::check(in_t::ptr_t const &ptr) const {
 }
 
 }}  // namespace phantom::io_benchmark
+
+// config binding
+namespace pd { namespace config {
+
+using phantom::io_benchmark::spdy_method_stream_t;
+using phantom::io_benchmark::method_t;
+
+config_binding_sname(spdy_method_stream_t);
+
+config_binding_type(spdy_method_stream_t, method_t);
+config_binding_value(spdy_method_stream_t, method);
+config_binding_type(spdy_method_stream_t, spdy_framer_t);
+config_binding_value(spdy_method_stream_t, framer);
+
+config_binding_cast(spdy_method_stream_t, method_t);
+config_binding_ctor(method_t, spdy_method_stream_t);
+}}
+// end of config binding
+

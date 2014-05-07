@@ -4,20 +4,26 @@
 #include <phantom/module.H>
 #include <pd/base/config.H>
 
-namespace phantom { namespace io_benchmark {
 
-MODULE(io_benchmark_method_stream_spdy_framer);
+namespace pd { namespace config {
 
-namespace method_stream {
+using phantom::io_benchmark::spdy_framer_t;
+
 config_binding_sname(spdy_framer_t);
 config_binding_value(spdy_framer_t, spdy_version);
 config_binding_ctor(spdy_framer_t, spdy_framer_t);
-}
 
 config_enum_internal_sname(spdy_framer_t, spdy_version_t);
 config_enum_internal_value(spdy_framer_t, spdy_version_t, spdy2);
 config_enum_internal_value(spdy_framer_t, spdy_version_t, spdy3);
 config_enum_internal_value(spdy_framer_t, spdy_version_t, spdy3_1);
+
+}}
+
+namespace phantom { namespace io_benchmark {
+
+MODULE(io_benchmark_method_stream_spdy_framer);
+
 
 namespace {
 ssize_t do_send(spdylay_session* session,

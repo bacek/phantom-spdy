@@ -52,16 +52,6 @@ private:
     std::vector<std::vector<char>> nv_data;
 };
 
-namespace spdy_source_filter {
-config_binding_sname(spdy_source_filter_t);
-config_binding_value(spdy_source_filter_t, framer);
-config_binding_value(spdy_source_filter_t, source);
-config_binding_value(spdy_source_filter_t, headers);
-
-config_binding_cast(spdy_source_filter_t, source_t);
-config_binding_ctor(source_t, spdy_source_filter_t);
-}
-
 spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
                                            config_t const& config)
     : source_t(name),
@@ -120,3 +110,17 @@ void spdy_source_filter_t::config_t::check(in_t::ptr_t const &ptr) const {
 }
 
 }}}  // namespace phantom::io_benchmark::method_stream
+
+namespace pd { namespace config {
+using phantom::io_benchmark::method_stream::spdy_source_filter_t;
+using phantom::io_benchmark::method_stream::source_t;
+
+config_binding_sname(spdy_source_filter_t);
+config_binding_value(spdy_source_filter_t, framer);
+config_binding_value(spdy_source_filter_t, source);
+config_binding_value(spdy_source_filter_t, headers);
+
+config_binding_cast(spdy_source_filter_t, source_t);
+config_binding_ctor(source_t, spdy_source_filter_t);
+}}
+
