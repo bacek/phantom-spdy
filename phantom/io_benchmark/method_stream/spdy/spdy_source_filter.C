@@ -67,7 +67,7 @@ spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
 
 bool spdy_source_filter_t::get_request(in_segment_t& request,
                                        in_segment_t& tag) const {
-    log_debug("source filter");
+    log_debug("SPDY: source filter");
     in_segment_t original_request;
     if (!source.get_request(original_request, tag)) {
         return false;

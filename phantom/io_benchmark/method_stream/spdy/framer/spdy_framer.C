@@ -88,18 +88,26 @@ bool spdy_framer_t::start() {
 
 
 bool spdy_framer_t::receive_data(in_t::ptr_t& in) {
-      // recv_buffer = in;
-      if (!in)
+    log_debug("SPDY: receive_data");
+    // recv_buffer = in;
+    if (!in)
         return false;
-      str_t s = in.__chunk();
-      int processed = spdylay_session_mem_recv(
-          session, reinterpret_cast<const uint8_t*>(s.ptr()), s.size());
-      return processed == 0;
+    str_t s = in.__chunk();
+    while (s.size() > 0) {
+        int processed = spdylay_session_mem_recv(
+            session, reinterpret_cast<const uint8_t*>(s.ptr()), s.size());
+        log_debug("SPDY: receive_data chunk %d", processed);
+        if (processed < 0)
+            return false;
+        s = str_t(s.ptr() + processed, s.size() - processed);
+    }
+    return true;
 }
 
 bool spdy_framer_t::send_data(in_segment_t &out) {
     spdylay_session_send(session);
     out = send_buffer;
+    log_debug("SPDY: send_data %lu", out.size());
     return true;
 }
 
