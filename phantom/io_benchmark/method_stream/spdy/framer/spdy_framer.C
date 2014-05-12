@@ -3,6 +3,7 @@
 
 #include <phantom/module.H>
 #include <pd/base/config.H>
+#include <pd/base/exception.H>
 
 #include <string.h>  // memset
 
@@ -34,16 +35,31 @@ void on_ctrl_recv_callback(spdylay_session* session,
                               spdylay_frame* frame,
                               void* user_data) {
     (void)session;
-    (void)type;
-    (void)frame;
 
     spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
 
-    log_debug("SPDY: Got CONTROL frame type %d %ld", type, self->in_flight_requests);
+    log_debug("SPDY: Got CONTROL frame type %d %d %ld",
+        type,
+        frame->ctrl.hd.flags,
+        self->in_flight_requests);
 
-    // It's not true, but whatever.
     if (type == SPDYLAY_SYN_REPLY) {
-        self->in_flight_requests--;
+        if (frame->syn_reply.hd.flags & SPDYLAY_CTRL_FLAG_FIN)
+            self->in_flight_requests--;
+
+        // Search for :status and extract it
+        // Iterate over even headers.
+        for (ssize_t i = 0; frame->syn_reply.nv[i]; i +=2 ) {
+            if (strncmp(frame->syn_reply.nv[i], ":status", 7) == 0) {
+                char* end;
+                unsigned int status = strtoul(frame->syn_reply.nv[i+1], &end, 10);
+                if (*end != ' ') {
+                    log_debug("Failed to parse status line");
+                }
+                log_debug("SPDY: status '%d'", status);
+                break;
+            }
+        }
     }
 }
 
@@ -53,17 +69,19 @@ void on_data_recv_callback(spdylay_session* session,
                            int32_t length,
                            void* user_data) {
     (void)session;
-    (void)flags;
-    (void)user_data;
-    log_debug("SPDY: Got DATA frame for stream %d length %d flags %d",
+    spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
+    log_debug("SPDY: Got DATA frame for stream %d length %d flags %d (%ld)",
             stream_id,
             length,
-            flags);
+            flags,
+            self->in_flight_requests);
+    if (flags & SPDYLAY_DATA_FLAG_FIN)
+        self->in_flight_requests--;
 }
 
 }
 
-spdy_framer_t::spdy_framer_t(const ssl_ctx_t& c) : spdy_version(spdy3_1), ctx(c), session(nullptr) {}
+spdy_framer_t::spdy_framer_t(const ssl_ctx_t& c) : spdy_version(spdy3_1), ctx(c), session(nullptr), in_flight_requests(0) {}
 
 spdy_framer_t::~spdy_framer_t() {
     log_debug("SPDY: destructing framer %lx", this);
@@ -74,6 +92,18 @@ bool spdy_framer_t::start() {
     log_debug("SPDY: starting framer %lx", this);
 
     //log_debug("SPDY: proto %s", ctx.negotiated_proto);
+
+    if (string_t::cmp_eq<ident_t>(ctx.negotiated_proto, CSTR("spdy/2")))
+        spdy_version = spdy2;
+    else if (string_t::cmp_eq<ident_t>(ctx.negotiated_proto, CSTR("spdy/3")))
+        spdy_version = spdy3;
+    else if (string_t::cmp_eq<ident_t>(ctx.negotiated_proto, CSTR("spdy/3.1")))
+        spdy_version = spdy3_1;
+    else
+        throw exception_sys_t(log::error, EPROTO, "Unknown proto negotiated %.*s",
+            (int)ctx.negotiated_proto.size(), ctx.negotiated_proto.ptr());
+
+    log_debug("SPDY: version %d", spdy_version);
 
     memset(&callbacks, 0, sizeof(callbacks));
 

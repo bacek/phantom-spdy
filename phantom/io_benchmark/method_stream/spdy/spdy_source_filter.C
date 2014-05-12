@@ -83,18 +83,16 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
     }
 
     // Submit N requests
-    bool do_send = false;
     while (framer->in_flight_requests < burst) {
         in_segment_t original_request;
         if (!source.get_request(original_request, tag)) {
-            if (do_send)
-                break;
-
-            // TODO Shutdown session gracefully
-            return false;
+            // Wait for already in flight requests to finish
+            log_debug("SPDY: original source is exhausted (%ld)", framer->in_flight_requests);
+            if (framer->in_flight_requests)
+                return framer->send_data(request);
+            else
+                return false;
         }
-
-        do_send = true;
 
         // Assume that request is just url to fetch.
         // TODO Implement proper parsing. Yours truly, CO.
@@ -118,6 +116,7 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         std::copy(nv.begin(), nv.end(), nv_send + 2);
         nv_send[nv.size() + 2] = nullptr;
 
+        log_debug("SPDY: submitting request");
         int rv = spdylay_submit_request(framer->session, 0, nv_send, nullptr, nullptr);
         if (rv != 0)
             return false;
