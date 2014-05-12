@@ -6,6 +6,7 @@
 #include <pd/base/config.H>
 #include <pd/base/config_list.H>
 
+#include "transport_spdy.H"
 #include "framer/spdy_framer.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
@@ -68,8 +69,22 @@ spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
 bool spdy_source_filter_t::get_request(in_segment_t& request,
                                        in_segment_t& tag) const {
     log_debug("SPDY: source filter");
+
+    auto* framer = transport_spdy_t::current_framer();
+    log_debug("SPDY: framer %lx", framer);
+    // Wait for framer.
+    if (!framer)
+        return true;
+
+    // If it's fresh framer - start it.
+    if (!framer->session) {
+        framer->start();
+        return framer->send_data(request);
+    }
+
     in_segment_t original_request;
     if (!source.get_request(original_request, tag)) {
+        // TODO Shutdown session gracefully
         return false;
     }
 
@@ -95,21 +110,19 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
     std::copy(nv.begin(), nv.end(), nv_send + 2);
     nv_send[nv.size() + 2] = nullptr;
 
-    (void)request;
-
-    int rv = spdylay_submit_request(framer.session, 0, nv_send, nullptr, nullptr);
+    int rv = spdylay_submit_request(framer->session, 0, nv_send, nullptr, nullptr);
     if (rv != 0)
         return false;
 
-    return framer.send_data(request);
+    return framer->send_data(request);
 }
 
 
 void spdy_source_filter_t::config_t::check(in_t::ptr_t const &ptr) const {
     if (!source)
         config::error(ptr, "Original 'source' is required for spdy_source_filter");
-    if (!framer)
-        config::error(ptr, "SPDY 'framer' is required for spdy_source_filter");
+    //if (!framer)
+    //    config::error(ptr, "SPDY 'framer' is required for spdy_source_filter");
 }
 
 }}}  // namespace phantom::io_benchmark::method_stream

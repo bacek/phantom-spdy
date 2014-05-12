@@ -2,6 +2,8 @@
 
 #include <pd/base/config.H>
 
+#include "transport_spdy.H"
+
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
 spdy_proto_t::spdy_proto_t(string_t const &sname, config_t const &config)
@@ -13,7 +15,18 @@ bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
                                unsigned int& res_code,
                                logger_t::level_t& lev) const {
     (void)request;
-    if (!framer.receive_data(ptr))
+    auto* framer = transport_spdy_t::current_framer();
+    assert(framer);
+
+    log_debug("SPDY: proto");
+
+    // If it's fresh framer - start it.
+    if (!framer->session) {
+        //framer->start();
+        return true;
+    }
+
+    if (!framer->receive_data(ptr))
         return false;
 
     res_code = 200;
@@ -23,9 +36,9 @@ bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
 }
 
 
-void spdy_proto_t::config_t::check(in_t::ptr_t const &ptr) const {
-    if (!framer)
-        config::error(ptr, "SPDY 'framer' is required for spdy_proto_t");
+void spdy_proto_t::config_t::check(in_t::ptr_t const &) const {
+    //if (!framer)
+    //    config::error(ptr, "SPDY 'framer' is required for spdy_proto_t");
 }
 
 }}}  // namespace phantom::io_benchmark::method_stream

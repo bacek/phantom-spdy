@@ -4,6 +4,7 @@
 #include <phantom/shared.H>
 #include <pd/base/config.H>
 #include <pd/base/config_enum.H>
+#include <pd/ssl/ssl.H>
 
 #include <spdylay/spdylay.h>
 
@@ -26,17 +27,7 @@ public:
         spdy3_1 = 4,
     };
 
-    struct config_t {
-        // Because Phantom ask source before establishing connection we have to
-        // predefine used proto
-        config::enum_t<spdy_version_t> spdy_version;
-
-        config_t() : spdy_version(unconfigured) {}
-
-        void check(in_t::ptr_t const &) const;
-    };
-
-    spdy_framer_t(string_t const &, config_t const &);
+    spdy_framer_t(const ssl_ctx_t& ctx);
 	~spdy_framer_t();
 
     // Prepare callbacks, create spdy session.
@@ -44,7 +35,7 @@ public:
     bool start();
 
     // Receive data from the other end.
-    // Dta to receive will be read from "in"
+    // Data to receive will be read from "in"
     bool receive_data(in_t::ptr_t &in); // const?
 
     // Send data to the other end.
@@ -55,13 +46,15 @@ public:
     // Preconfigured SPDY version
     spdy_version_t spdy_version;
 
+    const ssl_ctx_t& ctx;
+
     // Actual SPDY implementation
     spdylay_session* session;
 
 public:
     spdylay_session_callbacks callbacks;
 
-    in_segment_t send_buffer;
+    in_segment_list_t send_buffer;
 };
 
 }}  // namespace phantom::io_benchmark

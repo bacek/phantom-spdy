@@ -43,7 +43,7 @@ private:
     // Original method to wrap
     method_t& method;
 
-    spdy_framer_t& framer;
+    //spdy_framer_t& framer;
 };
 
 
@@ -51,8 +51,7 @@ private:
 
 
 spdy_method_stream_t::spdy_method_stream_t(string_t const& sname, config_t const &config)
-    : method_t(sname), method(*config.method), framer(*config.framer) {
-    framer.start();
+    : method_t(sname), method(*config.method) {
 }
 
 spdy_method_stream_t::~spdy_method_stream_t() {
@@ -74,8 +73,6 @@ bool spdy_method_stream_t::test(times_t &times) const {
 void spdy_method_stream_t::config_t::check(in_t::ptr_t const &ptr) const {
     if (!method)
         config::error(ptr, "'method' is required");
-    if (!framer)
-        config::error(ptr, "'framer' is required");
 }
 
 }}  // namespace phantom::io_benchmark

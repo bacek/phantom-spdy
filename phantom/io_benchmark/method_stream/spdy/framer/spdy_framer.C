@@ -4,21 +4,7 @@
 #include <phantom/module.H>
 #include <pd/base/config.H>
 
-
-namespace pd { namespace config {
-
-using phantom::io_benchmark::spdy_framer_t;
-
-config_binding_sname(spdy_framer_t);
-config_binding_value(spdy_framer_t, spdy_version);
-config_binding_ctor(spdy_framer_t, spdy_framer_t);
-
-config_enum_internal_sname(spdy_framer_t, spdy_version_t);
-config_enum_internal_value(spdy_framer_t, spdy_version_t, spdy2);
-config_enum_internal_value(spdy_framer_t, spdy_version_t, spdy3);
-config_enum_internal_value(spdy_framer_t, spdy_version_t, spdy3_1);
-
-}}
+#include <string.h>  // memset
 
 namespace phantom { namespace io_benchmark {
 
@@ -31,15 +17,14 @@ ssize_t do_send(spdylay_session* session,
             void *user_data) {
     (void)session;
     (void)flags;
+    log_debug("SPDY: framer sending data %ld", length);
     spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
 
     string_t::ctor_t buf(length);
     for (size_t i = 0; i < length; ++i)
         buf(*data++);
     string_t s = buf;
-    in_segment_list_t t;
-    t.append(s);
-    self->send_buffer = t;
+    self->send_buffer.append(s);
 
     return length;
 }
@@ -56,25 +41,34 @@ void on_ctrl_recv_callback(spdylay_session* session,
 }
 
 void on_data_recv_callback(spdylay_session* session,
-                              uint8_t flags,
-                              int32_t stream_id,
-                              int32_t length,
-                              void* user_data) {
+                           uint8_t flags,
+                           int32_t stream_id,
+                           int32_t length,
+                           void* user_data) {
     (void)session;
     (void)flags;
     (void)user_data;
-    log_debug("SPDY: Got DATA frame for stream %d length %d", stream_id, length);
+    log_debug("SPDY: Got DATA frame for stream %d length %d flags %d",
+            stream_id,
+            length,
+            flags);
 }
 
 }
 
-spdy_framer_t::spdy_framer_t(string_t const &, config_t const &config)
-    : spdy_version(config.spdy_version) {
-}
+spdy_framer_t::spdy_framer_t(const ssl_ctx_t& c) : spdy_version(spdy3_1), ctx(c), session(nullptr) {}
 
-spdy_framer_t::~spdy_framer_t() {}
+spdy_framer_t::~spdy_framer_t() {
+    log_debug("SPDY: destructing framer %lx", this);
+    spdylay_session_del(session);
+}
 
 bool spdy_framer_t::start() {
+    log_debug("SPDY: starting framer %lx", this);
+
+    //log_debug("SPDY: proto %s", ctx.negotiated_proto);
+
+    memset(&callbacks, 0, sizeof(callbacks));
 
     callbacks.send_callback = &do_send;
     callbacks.on_ctrl_recv_callback = &on_ctrl_recv_callback;
@@ -88,15 +82,15 @@ bool spdy_framer_t::start() {
 
 
 bool spdy_framer_t::receive_data(in_t::ptr_t& in) {
-    log_debug("SPDY: receive_data");
     // recv_buffer = in;
     if (!in)
         return false;
     str_t s = in.__chunk();
+    log_debug("SPDY: receive_data %ld", s.size());
     while (s.size() > 0) {
         int processed = spdylay_session_mem_recv(
             session, reinterpret_cast<const uint8_t*>(s.ptr()), s.size());
-        log_debug("SPDY: receive_data chunk %d", processed);
+        log_debug("SPDY: processed data chunk size %d", processed);
         if (processed < 0)
             return false;
         s = str_t(s.ptr() + processed, s.size() - processed);
@@ -107,14 +101,9 @@ bool spdy_framer_t::receive_data(in_t::ptr_t& in) {
 bool spdy_framer_t::send_data(in_segment_t &out) {
     spdylay_session_send(session);
     out = send_buffer;
+    send_buffer.clear();
     log_debug("SPDY: send_data %lu", out.size());
     return true;
-}
-
-
-void spdy_framer_t::config_t::check(in_t::ptr_t const &ptr) const {
-    if (!spdy_version)
-        config::error(ptr, "'spdy_version' is required. Try to put 'spdy3_1'");
 }
 
 }}  // namespace phantom::io_benchmark
