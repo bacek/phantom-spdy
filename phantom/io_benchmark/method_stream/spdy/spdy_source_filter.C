@@ -29,14 +29,14 @@ public:
     typedef io_benchmark::spdy_framer_t spdy_framer_t;
     typedef method_stream::source_t source_t;
     struct config_t {
-        config_binding_type_ref(spdy_framer_t);
         config_binding_type_ref(source_t);
 
-        config::objptr_t<spdy_framer_t> framer;
         config::objptr_t<source_t> source;
         config::list_t<string_t> headers;
 
-        config_t() throw() : framer() {}
+        // Amount of concurrent requests to send
+        // Default 1.
+        ssize_t burst;
 
 		void check(in_t::ptr_t const &) const;
     };
@@ -46,7 +46,7 @@ public:
 
 private:
     source_t& source;
-    spdy_framer_t& framer;
+    ssize_t burst;
 
     // It's awful hack...
     std::vector<char*> nv;
@@ -57,7 +57,7 @@ spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
                                            config_t const& config)
     : source_t(name),
       source(*config.source),
-      framer(*config.framer) {
+      burst(config.burst ? config.burst : 1) {
 
     for (auto ptr = config.headers._ptr(); ptr; ++ptr) {
         nv_data.emplace_back(ptr.val().ptr(), ptr.val().ptr() + ptr.val().size());
@@ -82,37 +82,47 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         return framer->send_data(request);
     }
 
-    in_segment_t original_request;
-    if (!source.get_request(original_request, tag)) {
-        // TODO Shutdown session gracefully
-        return false;
+    // Submit N requests
+    bool do_send = false;
+    while (framer->in_flight_requests < burst) {
+        in_segment_t original_request;
+        if (!source.get_request(original_request, tag)) {
+            if (do_send)
+                break;
+
+            // TODO Shutdown session gracefully
+            return false;
+        }
+
+        do_send = true;
+
+        // Assume that request is just url to fetch.
+        // TODO Implement proper parsing. Yours truly, CO.
+        // +2 for ':path' and path
+        // +1 for nullptr
+        const char *nv_send[nv.size() + 3];
+        nv_send[0] = ":path";
+
+        in_t::ptr_t ptr = original_request;
+        // Meh. operator bool actually initialize ptr...
+        if (!ptr) {
+            log_error("Meh!");
+            return false;
+        }
+        auto p = ptr.__chunk();
+        std::vector<char> ps { p.ptr(), p.ptr() + p.size() };
+        ps.push_back('\0');
+        nv_send[1] = ps.data();
+
+        //nv_send[1] = original_request
+        std::copy(nv.begin(), nv.end(), nv_send + 2);
+        nv_send[nv.size() + 2] = nullptr;
+
+        int rv = spdylay_submit_request(framer->session, 0, nv_send, nullptr, nullptr);
+        if (rv != 0)
+            return false;
+        framer->in_flight_requests++;
     }
-
-    // Assume that request is just url to fetch.
-    // TODO Implement proper parsing. Yours truly, CO.
-    // +2 for ':path' and path
-    // +1 for nullptr
-    const char *nv_send[nv.size() + 3];
-    nv_send[0] = ":path";
-
-    in_t::ptr_t ptr = original_request;
-    // Meh. operator bool actually initialize ptr...
-    if (!ptr) {
-        log_error("Meh!");
-        return false;
-    }
-    auto p = ptr.__chunk();
-    std::vector<char> ps { p.ptr(), p.ptr() + p.size() };
-    ps.push_back('\0');
-    nv_send[1] = ps.data();
-
-    //nv_send[1] = original_request
-    std::copy(nv.begin(), nv.end(), nv_send + 2);
-    nv_send[nv.size() + 2] = nullptr;
-
-    int rv = spdylay_submit_request(framer->session, 0, nv_send, nullptr, nullptr);
-    if (rv != 0)
-        return false;
 
     return framer->send_data(request);
 }
@@ -121,8 +131,6 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
 void spdy_source_filter_t::config_t::check(in_t::ptr_t const &ptr) const {
     if (!source)
         config::error(ptr, "Original 'source' is required for spdy_source_filter");
-    //if (!framer)
-    //    config::error(ptr, "SPDY 'framer' is required for spdy_source_filter");
 }
 
 }}}  // namespace phantom::io_benchmark::method_stream
@@ -132,9 +140,9 @@ using phantom::io_benchmark::method_stream::spdy_source_filter_t;
 using phantom::io_benchmark::method_stream::source_t;
 
 config_binding_sname(spdy_source_filter_t);
-config_binding_value(spdy_source_filter_t, framer);
 config_binding_value(spdy_source_filter_t, source);
 config_binding_value(spdy_source_filter_t, headers);
+config_binding_value(spdy_source_filter_t, burst);
 
 config_binding_cast(spdy_source_filter_t, source_t);
 config_binding_ctor(source_t, spdy_source_filter_t);

@@ -42,6 +42,9 @@ public:
     // Data to send will be filled into "out"
     bool send_data(in_segment_t &out); // const?
 
+    // Amount of requests in flight right now
+    // ssize_t in_flight_requests() const;
+
 public:
     // Preconfigured SPDY version
     spdy_version_t spdy_version;
@@ -55,6 +58,11 @@ public:
     spdylay_session_callbacks callbacks;
 
     in_segment_list_t send_buffer;
+
+public:
+
+    // Amount of requests in flight right now
+    ssize_t in_flight_requests;
 };
 
 }}  // namespace phantom::io_benchmark

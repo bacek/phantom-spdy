@@ -35,9 +35,16 @@ void on_ctrl_recv_callback(spdylay_session* session,
                               void* user_data) {
     (void)session;
     (void)type;
-    (void)user_data;
     (void)frame;
-    log_debug("SPDY: Got CONTROL frame type %d", type);
+
+    spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
+
+    log_debug("SPDY: Got CONTROL frame type %d %ld", type, self->in_flight_requests);
+
+    // It's not true, but whatever.
+    if (type == SPDYLAY_SYN_REPLY) {
+        self->in_flight_requests--;
+    }
 }
 
 void on_data_recv_callback(spdylay_session* session,
