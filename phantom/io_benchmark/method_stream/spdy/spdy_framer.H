@@ -36,7 +36,7 @@ public:
 
     // Receive data from the other end.
     // Data to receive will be read from "in"
-    bool receive_data(in_t::ptr_t &in); // const?
+    bool receive_data(in_t::ptr_t &in, unsigned int& res_code); // const?
 
     // Send data to the other end.
     // Data to send will be filled into "out"
@@ -58,6 +58,7 @@ public:
     spdylay_session_callbacks callbacks;
 
     in_segment_list_t send_buffer;
+    unsigned int last_res_code;
 
 public:
 

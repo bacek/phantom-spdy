@@ -25,12 +25,15 @@ bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
         return true;
     }
 
-    if (!framer->receive_data(ptr))
+    if (!framer->receive_data(ptr, res_code))
         return false;
 
-    res_code = -1;
-    // res_code = 200;
-    lev = logger_t::all;
+    if(res_code >= 200 && res_code < 400)
+		lev = logger_t::all;
+	else if(res_code >= 400 && res_code < 500)
+		lev = logger_t::proto_warning;
+	else
+		lev = logger_t::proto_error;
 
     return true;
 }

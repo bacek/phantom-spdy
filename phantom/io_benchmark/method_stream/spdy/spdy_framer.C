@@ -49,14 +49,18 @@ void on_ctrl_recv_callback(spdylay_session* session,
         for (ssize_t i = 0; frame->syn_reply.nv[i]; i +=2 ) {
             if (strncmp(frame->syn_reply.nv[i], ":status", 7) == 0) {
                 char* end;
-                unsigned int status = strtoul(frame->syn_reply.nv[i+1], &end, 10);
+                self->last_res_code = strtoul(frame->syn_reply.nv[i+1], &end, 10);
                 if (*end != ' ') {
                     log_debug("Failed to parse status line");
+                    self->last_res_code = 500;
                 }
-                log_debug("SPDY: status '%d'", status);
+                log_debug("SPDY: status '%d'", self->last_res_code);
                 break;
             }
         }
+    } else if (type == SPDYLAY_GOAWAY) {
+        // It's not actually true. But it will work for now
+        self->last_res_code = 500;
     }
 }
 
@@ -113,8 +117,9 @@ bool spdy_framer_t::start() {
 }
 
 
-bool spdy_framer_t::receive_data(in_t::ptr_t& in) {
+bool spdy_framer_t::receive_data(in_t::ptr_t& in, unsigned int& res_code) {
     // recv_buffer = in;
+    last_res_code = 0;
     if (!in)
         return false;
     str_t s = in.__chunk();
@@ -127,6 +132,7 @@ bool spdy_framer_t::receive_data(in_t::ptr_t& in) {
             return false;
         s = str_t(s.ptr() + processed, s.size() - processed);
     }
+    res_code = last_res_code;
     return true;
 }
 
