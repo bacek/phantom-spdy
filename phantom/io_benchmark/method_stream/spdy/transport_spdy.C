@@ -25,6 +25,10 @@ namespace {
     __thread spdy_framer_t* cur_framer;
 }
 
+transport_spdy_t::~transport_spdy_t() throw() {
+    delete cur_framer;
+}
+
 conn_t *transport_spdy_t::new_connect(int fd, fd_ctl_t const *_ctl) const {
     auto* res = new conn_ssl_t(fd, ctx, timeout, _ctl);
     // Reset framer for new con

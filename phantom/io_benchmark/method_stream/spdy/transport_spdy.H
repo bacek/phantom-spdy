@@ -64,7 +64,7 @@ public:
 		transport_t(), ctx(ssl_ctx_t::client, config.auth, config.ciphers, config.protos),
 		timeout(config.timeout) { }
 
-	inline ~transport_spdy_t() throw() { }
+	~transport_spdy_t() throw();
 
 	virtual conn_t *new_connect(int fd, fd_ctl_t const *_ctl) const;
 
