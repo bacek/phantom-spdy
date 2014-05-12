@@ -20,7 +20,7 @@
 
 #include <unistd.h>
 
-#include "framer/spdy_framer.H"
+#include "spdy_framer.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 

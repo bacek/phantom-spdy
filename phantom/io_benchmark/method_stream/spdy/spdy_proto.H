@@ -7,21 +7,14 @@
 #include <phantom/io_benchmark/method_stream/proto.H>
 #include <phantom/io_benchmark/method_stream/logger.H>
 
-#include "framer/spdy_framer.H"
+#include "spdy_framer.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
 class spdy_proto_t : public proto_t {
 public:
-    // typedef required for config magic
-    typedef io_benchmark::spdy_framer_t spdy_framer_t;
+    // We have to have "config" for loadable module.
     struct config_t {
-        config_binding_type_ref(spdy_framer_t);
-
-        config::objptr_t<spdy_framer_t> framer;
-
-        config_t() throw() : framer() {}
-
 		void check(in_t::ptr_t const &) const;
     };
 
@@ -38,9 +31,6 @@ public:
 	virtual void do_fini() {};
 
     spdy_proto_t(string_t const &sname, config_t const &config);
-
-protected:
-    spdy_framer_t& framer;
 };
 
 

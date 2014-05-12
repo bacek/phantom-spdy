@@ -4,8 +4,11 @@
 #include "transport_spdy.H"
 
 #include <pd/base/config.H>
+#include <phantom/module.H>
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
+
+MODULE(io_benchmark_method_stream_spdy);
 
 namespace transport_spdy {
 config_binding_sname(transport_spdy_t);

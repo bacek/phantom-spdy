@@ -7,7 +7,7 @@
 #include <pd/base/config_list.H>
 
 #include "transport_spdy.H"
-#include "framer/spdy_framer.H"
+#include "spdy_framer.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
@@ -25,8 +25,6 @@ public:
 	virtual void do_stat_print() const { }
 	virtual void do_fini() { }
 public:
-    // typedef required for config magic
-    typedef io_benchmark::spdy_framer_t spdy_framer_t;
     typedef method_stream::source_t source_t;
     struct config_t {
         config_binding_type_ref(source_t);

@@ -6,8 +6,8 @@
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
-spdy_proto_t::spdy_proto_t(string_t const &sname, config_t const &config)
-    : proto_t(sname), framer(*config.framer) {
+spdy_proto_t::spdy_proto_t(string_t const &sname, config_t const &)
+    : proto_t(sname) {
 }
 
 bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
@@ -48,7 +48,6 @@ using phantom::io_benchmark::method_stream::spdy_proto_t;
 using phantom::io_benchmark::method_stream::proto_t;
 
 config_binding_sname(spdy_proto_t);
-config_binding_value(spdy_proto_t, framer);
 
 config_binding_cast(spdy_proto_t, proto_t);
 config_binding_ctor(proto_t, spdy_proto_t);

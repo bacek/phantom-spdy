@@ -7,10 +7,7 @@
 
 #include <string.h>  // memset
 
-namespace phantom { namespace io_benchmark {
-
-MODULE(io_benchmark_method_stream_spdy_framer);
-
+namespace phantom { namespace io_benchmark { namespace method_stream {
 
 namespace {
 ssize_t do_send(spdylay_session* session,
@@ -91,8 +88,6 @@ spdy_framer_t::~spdy_framer_t() {
 bool spdy_framer_t::start() {
     log_debug("SPDY: starting framer %lx", this);
 
-    //log_debug("SPDY: proto %s", ctx.negotiated_proto);
-
     if (string_t::cmp_eq<ident_t>(ctx.negotiated_proto, CSTR("spdy/2")))
         spdy_version = spdy2;
     else if (string_t::cmp_eq<ident_t>(ctx.negotiated_proto, CSTR("spdy/3")))
@@ -143,4 +138,4 @@ bool spdy_framer_t::send_data(in_segment_t &out) {
     return true;
 }
 
-}}  // namespace phantom::io_benchmark
+}}}  // namespace phantom::io_benchmark::method_stream

@@ -12,7 +12,7 @@
 
 #pragma GCC visibility push(default)
 
-namespace phantom { namespace io_benchmark {
+namespace phantom { namespace io_benchmark { namespace method_stream {
 
 // "SPDY protocol framer"
 // Wrapper around spdylay/nghttp2 which provides shared state between various
@@ -65,6 +65,6 @@ public:
     ssize_t in_flight_requests;
 };
 
-}}  // namespace phantom::io_benchmark
+}}}  // namespace phantom::io_benchmark::method_stream
 
 #pragma GCC visibility pop
