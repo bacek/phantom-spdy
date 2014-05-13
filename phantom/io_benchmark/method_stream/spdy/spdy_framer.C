@@ -18,7 +18,6 @@ spdy_framer_t::spdy_framer_t(const ssl_ctx_t& c)
       in_flight_requests_(0) {}
 
 spdy_framer_t::~spdy_framer_t() {
-    log_debug("SPDY: destructing framer %lx", this);
     spdylay_session_del(session_);
 }
 
@@ -59,7 +58,6 @@ bool spdy_framer_t::receive_data(in_t::ptr_t& in, unsigned int& res_code) {
     while (s.size() > 0) {
         int processed = spdylay_session_mem_recv(
             session_, reinterpret_cast<const uint8_t*>(s.ptr()), s.size());
-        log_debug("SPDY: processed data chunk size %d", processed);
         if (processed < 0)
             return false;
         s = str_t(s.ptr() + processed, s.size() - processed);
@@ -86,7 +84,6 @@ int spdy_framer_t::submit_request(uint8_t pri,
 ssize_t spdy_framer_t::do_send(spdylay_session* UNUSED(session),
             const uint8_t* data, size_t length, int UNUSED(flags),
             void *user_data) {
-    log_debug("SPDY: framer sending data %ld", length);
     spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
 
     string_t::ctor_t buf(length);

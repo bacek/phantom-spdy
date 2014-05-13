@@ -66,10 +66,7 @@ spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
 
 bool spdy_source_filter_t::get_request(in_segment_t& request,
                                        in_segment_t& tag) const {
-    log_debug("SPDY: source filter");
-
     auto* framer = spdy_transport_t::current_framer();
-    log_debug("SPDY: framer %lx", framer);
     // Wait for framer.
     if (!framer)
         return true;
@@ -114,7 +111,6 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         std::copy(nv.begin(), nv.end(), nv_send + 2);
         nv_send[nv.size() + 2] = nullptr;
 
-        log_debug("SPDY: submitting request");
         int rv = framer->submit_request(0, nv_send, nullptr);
         if (rv != 0)
             return false;

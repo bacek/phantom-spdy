@@ -18,8 +18,6 @@ bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
     auto* framer = spdy_transport_t::current_framer();
     assert(framer);
 
-    log_debug("SPDY: proto");
-
     // If it's fresh framer there is nothing to receive.
     if (!framer->is_started()) {
         return true;
