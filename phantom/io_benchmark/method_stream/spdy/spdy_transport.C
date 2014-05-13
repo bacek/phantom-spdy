@@ -35,6 +35,7 @@ namespace {
 
 		virtual ~conn_ssl_t() throw() {
             delete cur_framer;
+            cur_framer = nullptr;
         }
 	};
 }
