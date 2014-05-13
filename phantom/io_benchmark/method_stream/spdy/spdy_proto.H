@@ -15,7 +15,7 @@ class spdy_proto_t : public proto_t {
 public:
     // We have to have "config" for loadable module.
     struct config_t {
-		void check(in_t::ptr_t const &) const;
+		void check(in_t::ptr_t const &) const {}
     };
 
     // proto_t implementation

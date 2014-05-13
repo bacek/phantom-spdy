@@ -38,15 +38,10 @@ bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
     return true;
 }
 
-
-void spdy_proto_t::config_t::check(in_t::ptr_t const &) const {
-    //if (!framer)
-    //    config::error(ptr, "SPDY 'framer' is required for spdy_proto_t");
-}
-
 }}}  // namespace phantom::io_benchmark::method_stream
 
 namespace pd { namespace config {
+
 using phantom::io_benchmark::method_stream::spdy_proto_t;
 using phantom::io_benchmark::method_stream::proto_t;
 
