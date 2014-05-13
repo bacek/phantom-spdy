@@ -28,20 +28,7 @@ class transport_spdy_t : public transport_t {
 public:
 	typedef ssl::auth_t auth_t;
 
-public:
-	class conn_ssl_t : public conn_t {
-		bq_conn_ssl_t bq_conn_ssl;
-
-		virtual operator bq_conn_t &();
-
-	public:
-		inline conn_ssl_t(
-			int fd, ssl_ctx_t const &ctx, interval_t _timeout, fd_ctl_t const *_ctl
-		) : conn_t(fd), bq_conn_ssl(fd, ctx, _timeout, _ctl) { }
-
-		virtual ~conn_ssl_t() throw();
-	};
-
+protected:
 	ssl_ctx_t ctx;
 	interval_t timeout;
 
