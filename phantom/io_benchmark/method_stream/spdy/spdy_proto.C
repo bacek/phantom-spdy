@@ -2,7 +2,7 @@
 
 #include <pd/base/config.H>
 
-#include "transport_spdy.H"
+#include "spdy_transport.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
@@ -15,7 +15,7 @@ bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
                                unsigned int& res_code,
                                logger_t::level_t& lev) const {
     (void)request;
-    auto* framer = transport_spdy_t::current_framer();
+    auto* framer = spdy_transport_t::current_framer();
     assert(framer);
 
     log_debug("SPDY: proto");

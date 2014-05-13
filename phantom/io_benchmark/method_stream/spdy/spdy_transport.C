@@ -1,7 +1,7 @@
 // Copyright (c) 2014 Yandex LLC. All rights reserved.
 // Author: Vasily Chekalkin <bacek@yandex-team.ru>
 
-#include "transport_spdy.H"
+#include "spdy_transport.H"
 
 #include <pd/base/config.H>
 #include <phantom/module.H>
@@ -39,13 +39,13 @@ namespace {
 	};
 }
 
-transport_spdy_t::~transport_spdy_t() throw() {}
+spdy_transport_t::~spdy_transport_t() throw() {}
 
-conn_t *transport_spdy_t::new_connect(int fd, fd_ctl_t const *_ctl) const {
+conn_t *spdy_transport_t::new_connect(int fd, fd_ctl_t const *_ctl) const {
     return new conn_ssl_t(fd, ctx, timeout, _ctl);
 }
 
-spdy_framer_t* transport_spdy_t::current_framer() {
+spdy_framer_t* spdy_transport_t::current_framer() {
     return cur_framer;
 }
 
@@ -53,17 +53,17 @@ spdy_framer_t* transport_spdy_t::current_framer() {
 
 namespace pd { namespace config {
 
-using phantom::io_benchmark::method_stream::transport_spdy_t;
+using phantom::io_benchmark::method_stream::spdy_transport_t;
 using phantom::io_benchmark::method_stream::transport_t;
 
-config_binding_sname(transport_spdy_t);
-config_binding_type(transport_spdy_t, auth_t);
-config_binding_value(transport_spdy_t, auth);
-config_binding_value(transport_spdy_t, ciphers);
-config_binding_value(transport_spdy_t, timeout);
-config_binding_value(transport_spdy_t, protos);
-config_binding_cast(transport_spdy_t, transport_t);
-config_binding_ctor(transport_t, transport_spdy_t);
+config_binding_sname(spdy_transport_t);
+config_binding_type(spdy_transport_t, auth_t);
+config_binding_value(spdy_transport_t, auth);
+config_binding_value(spdy_transport_t, ciphers);
+config_binding_value(spdy_transport_t, timeout);
+config_binding_value(spdy_transport_t, protos);
+config_binding_cast(spdy_transport_t, transport_t);
+config_binding_ctor(transport_t, spdy_transport_t);
 
 }}  // namespace pd::config
 

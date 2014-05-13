@@ -6,7 +6,7 @@
 #include <pd/base/config.H>
 #include <pd/base/config_list.H>
 
-#include "transport_spdy.H"
+#include "spdy_transport.H"
 #include "spdy_framer.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
@@ -68,7 +68,7 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
                                        in_segment_t& tag) const {
     log_debug("SPDY: source filter");
 
-    auto* framer = transport_spdy_t::current_framer();
+    auto* framer = spdy_transport_t::current_framer();
     log_debug("SPDY: framer %lx", framer);
     // Wait for framer.
     if (!framer)
