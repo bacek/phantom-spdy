@@ -34,6 +34,10 @@ public:
     // Returns true if everything is ok.
     bool start();
 
+    bool is_started() const {
+        return session != nullptr;
+    }
+
     // Receive data from the other end.
     // Data to receive will be read from "in"
     bool receive_data(in_t::ptr_t &in, unsigned int& res_code); // const?
@@ -54,16 +58,30 @@ public:
     // Actual SPDY implementation
     spdylay_session* session;
 
-public:
+    // Amount of requests in flight right now
+    ssize_t in_flight_requests;
+
+protected:
     spdylay_session_callbacks callbacks;
 
     in_segment_list_t send_buffer;
     unsigned int last_res_code;
 
-public:
+    // spdylay callbacks
+    static ssize_t do_send(spdylay_session* session,
+            const uint8_t* data, size_t length, int flags,
+            void *user_data);
 
-    // Amount of requests in flight right now
-    ssize_t in_flight_requests;
+    static void on_ctrl_recv_callback(spdylay_session* session,
+                              spdylay_frame_type type,
+                              spdylay_frame* frame,
+                              void* user_data);
+
+    static void on_data_recv_callback(spdylay_session* session,
+                           uint8_t flags,
+                           int32_t stream_id,
+                           int32_t length,
+                           void* user_data);
 };
 
 }}}  // namespace phantom::io_benchmark::method_stream
