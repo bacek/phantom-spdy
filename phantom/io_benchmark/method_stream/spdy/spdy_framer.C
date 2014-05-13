@@ -7,14 +7,14 @@
 
 #include <string.h>  // memset
 
+#include "spdy_misc.H"
+
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
 namespace {
-ssize_t do_send(spdylay_session* session,
-            const uint8_t* data, size_t length, int flags,
+ssize_t do_send(spdylay_session* UNUSED(session),
+            const uint8_t* data, size_t length, int UNUSED(flags),
             void *user_data) {
-    (void)session;
-    (void)flags;
     log_debug("SPDY: framer sending data %ld", length);
     spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
 
@@ -27,12 +27,10 @@ ssize_t do_send(spdylay_session* session,
     return length;
 }
 
-void on_ctrl_recv_callback(spdylay_session* session,
+void on_ctrl_recv_callback(spdylay_session* UNUSED(session),
                               spdylay_frame_type type,
                               spdylay_frame* frame,
                               void* user_data) {
-    (void)session;
-
     spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
 
     log_debug("SPDY: Got CONTROL frame type %d %d %ld",
@@ -64,12 +62,11 @@ void on_ctrl_recv_callback(spdylay_session* session,
     }
 }
 
-void on_data_recv_callback(spdylay_session* session,
+void on_data_recv_callback(spdylay_session* UNUSED(session),
                            uint8_t flags,
                            int32_t stream_id,
                            int32_t length,
                            void* user_data) {
-    (void)session;
     spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
     log_debug("SPDY: Got DATA frame for stream %d length %d flags %d (%ld)",
             stream_id,

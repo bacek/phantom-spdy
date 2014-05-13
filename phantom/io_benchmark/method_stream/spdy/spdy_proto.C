@@ -3,6 +3,7 @@
 #include <pd/base/config.H>
 
 #include "spdy_transport.H"
+#include "spdy_misc.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
@@ -11,10 +12,9 @@ spdy_proto_t::spdy_proto_t(string_t const &sname, config_t const &)
 }
 
 bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
-                               in_segment_t const& request,
+                               in_segment_t const& UNUSED(request),
                                unsigned int& res_code,
                                logger_t::level_t& lev) const {
-    (void)request;
     auto* framer = spdy_transport_t::current_framer();
     assert(framer);
 
