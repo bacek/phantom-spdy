@@ -50,6 +50,13 @@ spdy_framer_t* spdy_transport_t::current_framer() {
     return cur_framer;
 }
 
+void spdy_transport_t::config_t::check(in_t::ptr_t const& ptr) const {
+  if (!protos)
+    config::error(ptr,
+                  "'protos' is required for spdy_transport_t. "
+                  "For example 'protos = { \"spdy/3.1\" }'");
+}
+
 }}}  // namespace phantom::io_benchmark::method_stream
 
 namespace pd { namespace config {

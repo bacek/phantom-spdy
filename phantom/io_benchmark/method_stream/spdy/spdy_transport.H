@@ -24,15 +24,13 @@
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
+// SPDY transport.
+// Creates connection and associated spdy_framer_t alongside.
+// framer is stored in TLS, same as connection in method_stream_t.
+// Code is deliberately borrowed from Phantom's transport_ssl_t.
 class spdy_transport_t : public transport_t {
 public:
 	typedef ssl::auth_t auth_t;
-
-protected:
-	ssl_ctx_t ctx;
-	interval_t timeout;
-
-public:
 	struct config_t {
 		config_binding_type_ref(auth_t);
 		config::objptr_t<auth_t> auth;
@@ -44,7 +42,7 @@ public:
 
 		inline ~config_t() throw() { }
 
-		inline void check(in_t::ptr_t const &) const { }
+		inline void check(in_t::ptr_t const &) const;
 	};
 
 	inline spdy_transport_t(string_t const &, config_t const &config) :
@@ -55,7 +53,12 @@ public:
 
 	virtual conn_t *new_connect(int fd, fd_ctl_t const *_ctl) const;
 
+    // Accessor to current spdy_framer
     static spdy_framer_t* current_framer();
+
+protected:
+	ssl_ctx_t ctx;
+	interval_t timeout;
 };
 
 
