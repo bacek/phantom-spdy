@@ -35,7 +35,7 @@ public:
     bool start();
 
     bool is_started() const {
-        return session != nullptr;
+        return session_ != nullptr;
     }
 
     // Receive data from the other end.
@@ -46,26 +46,34 @@ public:
     // Data to send will be filled into "out"
     bool send_data(in_segment_t &out); // const?
 
-    // Amount of requests in flight right now
-    // ssize_t in_flight_requests() const;
-
-public:
-    // Preconfigured SPDY version
-    spdy_version_t spdy_version;
-
-    const ssl_ctx_t& ctx;
-
-    // Actual SPDY implementation
-    spdylay_session* session;
+    // spdylay wrapper
+    // TODO: Wrap data_provider to glue in_segment_t to spdyaly
+    int submit_request(uint8_t pri,
+                       const char **nv,
+                       void *stream_user_data);
 
     // Amount of requests in flight right now
-    ssize_t in_flight_requests;
+    inline ssize_t in_flight_requests() const {
+        return in_flight_requests_;
+    }
 
 protected:
-    spdylay_session_callbacks callbacks;
+    // Preconfigured SPDY version
+    spdy_version_t spdy_version_;
 
-    in_segment_list_t send_buffer;
-    unsigned int last_res_code;
+    const ssl_ctx_t& ctx_;
+
+    // Actual SPDY implementation
+    spdylay_session* session_;
+
+    // Amount of requests in flight right now
+    ssize_t in_flight_requests_;
+
+    spdylay_session_callbacks callbacks_;
+
+    in_segment_list_t send_buffer_;
+
+    unsigned int last_res_code_;
 
     // spdylay callbacks
     static ssize_t do_send(spdylay_session* session,

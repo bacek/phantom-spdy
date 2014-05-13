@@ -21,7 +21,7 @@ bool spdy_proto_t::reply_parse(in_t::ptr_t& ptr,
     log_debug("SPDY: proto");
 
     // If it's fresh framer there is nothing to receive.
-    if (!framer->session) {
+    if (!framer->is_started()) {
         return true;
     }
 

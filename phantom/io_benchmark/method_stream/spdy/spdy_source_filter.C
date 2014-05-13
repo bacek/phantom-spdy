@@ -75,18 +75,18 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         return true;
 
     // If it's fresh framer - start it.
-    if (!framer->session) {
+    if (!framer->is_started()) {
         framer->start();
         return framer->send_data(request);
     }
 
     // Submit N requests
-    while (framer->in_flight_requests < burst) {
+    while (framer->in_flight_requests() < burst) {
         in_segment_t original_request;
         if (!source.get_request(original_request, tag)) {
             // Wait for already in flight requests to finish
-            log_debug("SPDY: original source is exhausted (%ld)", framer->in_flight_requests);
-            if (framer->in_flight_requests)
+            log_debug("SPDY: original source is exhausted (%ld)", framer->in_flight_requests());
+            if (framer->in_flight_requests())
                 return framer->send_data(request);
             else
                 return false;
@@ -115,10 +115,9 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         nv_send[nv.size() + 2] = nullptr;
 
         log_debug("SPDY: submitting request");
-        int rv = spdylay_submit_request(framer->session, 0, nv_send, nullptr, nullptr);
+        int rv = framer->submit_request(0, nv_send, nullptr);
         if (rv != 0)
             return false;
-        framer->in_flight_requests++;
     }
 
     return framer->send_data(request);
