@@ -46,32 +46,40 @@ private:
     source_t& source;
     ssize_t burst;
 
-    // It's awful hack...
-    std::vector<const char*> nv;
+    // Storage for predefined headers.
+    // All headers stored in continuous memory block, \0 terminated.
     string_t nv_data_seg;
+    sarray1_t<const char*> nv;
 };
+
+namespace {
+// Aggregate all headers into single chunk of \0 separated values
+string_t aggregator(const config::list_t<string_t> &headers) {
+    string_t::ctor_t cons(1024);
+
+    // Construct single buffer with all predefined headers.
+    for (auto ptr = headers._ptr(); ptr; ++ptr) {
+        cons(ptr.val());
+        cons('\0');
+    }
+
+    return cons;
+}
+
+}
 
 spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
                                            config_t const& config)
     : source_t(name),
       source(*config.source),
-      burst(config.burst ? config.burst : 1) {
-
-    string_t::ctor_t cons(1024);
-
-    // Construct single buffer with all predefined headers.
-    for (auto ptr = config.headers._ptr(); ptr; ++ptr) {
-        cons(ptr.val());
-        cons('\0');
-    }
-
-    nv_data_seg = cons;
-    const char* d = nv_data_seg.ptr();
-    // Copy pointers into nv
-    for (auto ptr = config.headers._ptr(); ptr; ++ptr) {
-        nv.push_back(d);
-        d += ptr.val().size() + 1;  // +1 for \0
-    }
+      burst(config.burst ? config.burst : 1),
+      nv_data_seg(aggregator(config.headers)),
+      nv(config.headers, [&](const string_t& h) {
+            static const char* d = nv_data_seg.ptr();
+            const char* ret = d;
+            d += h.size() + 1;
+            return ret;
+      }) {
 }
 
 bool spdy_source_filter_t::get_request(in_segment_t& request,
@@ -103,7 +111,7 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         // TODO Implement proper parsing. Yours truly, CO.
         // +2 for ':path' and path
         // +1 for nullptr
-        const char *nv_send[nv.size() + 3];
+        const char *nv_send[nv.size + 3];
         nv_send[0] = ":path";
 
         in_t::ptr_t ptr = original_request;
@@ -118,8 +126,8 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         nv_send[1] = ps.data();
 
         //nv_send[1] = original_request
-        std::copy(nv.begin(), nv.end(), nv_send + 2);
-        nv_send[nv.size() + 2] = nullptr;
+        std::copy(nv.items, nv.items + nv.size, nv_send + 2);
+        nv_send[nv.size + 2] = nullptr;
 
         int rv = framer->submit_request(0, nv_send, nullptr);
         if (rv != 0)
