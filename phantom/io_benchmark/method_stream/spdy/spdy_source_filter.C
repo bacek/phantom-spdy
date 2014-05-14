@@ -20,10 +20,10 @@ public:
     // Generate request. Returns false if source is exhausted
 	virtual bool get_request(in_segment_t &request, in_segment_t &tag) const;
 
-	virtual void do_init() { }
-	virtual void do_run() const { }
-	virtual void do_stat_print() const { }
-	virtual void do_fini() { }
+	virtual void do_init();
+	virtual void do_run() const;
+	virtual void do_stat_print() const;
+	virtual void do_fini();
 public:
     typedef method_stream::source_t source_t;
     struct config_t {
@@ -146,6 +146,22 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
 void spdy_source_filter_t::config_t::check(in_t::ptr_t const &ptr) const {
     if (!source)
         config::error(ptr, "Original 'source' is required for spdy_source_filter");
+}
+
+void spdy_source_filter_t::do_init() {
+    source.init(name);
+}
+
+void spdy_source_filter_t::do_run() const {
+    source.run(name);
+}
+
+void spdy_source_filter_t::do_stat_print() const {
+    source.stat_print(name);
+}
+
+void spdy_source_filter_t::do_fini() {
+    source.fini(name);
 }
 
 }}}  // namespace phantom::io_benchmark::method_stream
