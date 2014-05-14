@@ -86,11 +86,14 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
                                        in_segment_t& tag) const {
     auto* framer = spdy_transport_t::current_framer();
     // Wait for framer.
-    if (!framer)
+    if (!framer) {
+        tag = STRING("*skip*");
         return true;
+    }
 
     // If it's fresh framer - start it.
     if (!framer->is_started()) {
+        tag = STRING("*skip*");
         framer->start();
         return framer->send_data(request);
     }
