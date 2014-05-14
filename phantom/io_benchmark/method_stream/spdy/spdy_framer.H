@@ -8,8 +8,6 @@
 
 #include <spdylay/spdylay.h>
 
-#include <functional>
-
 #pragma GCC visibility push(default)
 
 namespace phantom { namespace io_benchmark { namespace method_stream {

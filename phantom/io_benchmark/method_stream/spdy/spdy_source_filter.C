@@ -107,13 +107,6 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
                 return false;
         }
 
-        // Assume that request is just url to fetch.
-        // TODO Implement proper parsing. Yours truly, CO.
-        // +2 for ':path' and path
-        // +1 for nullptr
-        const char *nv_send[nv.size + 3];
-        nv_send[0] = ":path";
-
         in_t::ptr_t ptr = original_request;
         // Meh. operator bool actually initialize ptr...
         if (!ptr) {
@@ -121,16 +114,21 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
             return false;
         }
 
+        // Assume that request is just url to fetch.
+        // TODO Implement proper parsing. Yours truly, CO.
+        // +2 for ':path' and path
+        // +1 for nullptr
+        const char *nv_send[nv.size + 3];
+        nv_send[0] = ":path";
+
         // Construct actual "path"
         string_t::ctor_t cons(original_request.size());
         cons(ptr, ptr.__chunk().size());
         cons('\0');
         string_t path = cons;
-
         nv_send[1] = path.ptr();
 
-        //nv_send[1] = original_request
-        std::copy(nv.items, nv.items + nv.size, nv_send + 2);
+        memcpy(nv_send + 2, nv.items, nv.size * sizeof(nv.items[0]));
         nv_send[nv.size + 2] = nullptr;
 
         int rv = framer->submit_request(0, nv_send, nullptr);
