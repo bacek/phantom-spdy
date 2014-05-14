@@ -5,9 +5,13 @@
 #include <phantom/module.H>
 #include <pd/base/config.H>
 #include <pd/base/config_list.H>
+#include <pd/base/string.H>
 
 #include "spdy_transport.H"
 #include "spdy_framer.H"
+
+#include <ctype.h>
+#include <vector>
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
@@ -53,6 +57,14 @@ private:
 };
 
 namespace {
+
+string_t make_cstr(const in_segment_t& segment) {
+    string_t::ctor_t cons(segment.size());
+    cons(segment);
+    cons('\0');
+    return cons;
+}
+
 // Aggregate all headers into single chunk of \0 separated values
 string_t aggregator(const config::list_t<string_t> &headers) {
     string_t::ctor_t cons(1024);
@@ -117,22 +129,111 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
             return false;
         }
 
-        // Assume that request is just url to fetch.
-        // TODO Implement proper parsing. Yours truly, CO.
-        // +2 for ':path' and path
+        // Parse generated request and produce SPDY request from it.
+        // First line should be <method> <url> <version>
+        std::vector<const char*> nv_tmp;
+        in_t::ptr_t start = ptr;
+        size_t limit = 4096;  // Up to 4k URLs.
+
+        // We should switch to be able to send DATA frames. But this will work
+        // for now
+        if(!ptr.scan(" ", 1, limit))
+            throw exception_log_t(log::error, "Can't parse METHOD");
+        nv_tmp.push_back(":method");
+        MKCSTR(method, in_segment_t(start, ptr - start));
+        nv_tmp.push_back(method);
+
+        start = ++ptr;
+        if(!ptr.scan(" ", 1, limit))
+            throw exception_log_t(log::error, "Can't parse URL");
+
+        nv_tmp.push_back(":path");
+        MKCSTR(path, in_segment_t(start, ptr - start));
+        nv_tmp.push_back(path);
+
+        start = ++ptr;
+        if(!ptr.scan("\n", 1, limit))
+            throw exception_log_t(log::error, "Can't parse VERSION");
+        nv_tmp.push_back(":version");
+        MKCSTR(version, in_segment_t(start, ptr - start));
+        nv_tmp.push_back(version);
+
+        // XXX
+        nv_tmp.push_back(":scheme");
+        nv_tmp.push_back("https");
+
+        // Parse headers.
+        // 1. Change to lower-case.
+        // 2. Replace "Host" with ":host"
+        // 3. Skip "Connection"
+        // 4. Remember "Content-Length" to pass POST body (if any)
+        string_t::ctor_t storage_ctor(original_request.size());
+
+        size_t num_headers = 0;
+        while (true) {
+            start = ++ptr;  // skip '\n' on previous line
+
+            // If it's empty line we have reached our destination
+            if ((*ptr == '\n') || ((*ptr == '\r') && *(ptr + (size_t)1) == '\n'))
+                break;
+
+            if(!ptr.scan(":", 1, limit))
+                throw exception_log_t(log::error, "Can't parse header name");
+
+            in_segment_t header(start, ptr - start);
+            MKCSTR(_header, header);
+            log_debug("Found header '%s'", _header);
+
+            in_t::ptr_t m = header;
+            if (m.match<lower_t>(CSTR("host"))) {
+                storage_ctor(CSTR(":host"));
+            } else if (m.match<lower_t>(CSTR("content-length"))) {
+                // Just skip it
+                if(!ptr.scan("\n", 1, limit))
+                    throw exception_log_t(log::error, "Can't parse header value");
+                continue;
+            } else {
+                for (char *p = _header; *p; ++p) {
+                    storage_ctor(tolower(*p));
+                }
+            }
+            storage_ctor('\0');
+
+            // Skip :
+            ++ptr;
+            // and spaces
+            while (ptr.match<ident_t>(' '))
+                ;
+            start = ptr;
+            if(!ptr.scan("\n", 1, limit))
+                throw exception_log_t(log::error, "Can't parse header value");
+            MKCSTR(value, in_segment_t(start, ptr - start));
+            log_debug("Found value '%s'", value);
+            storage_ctor(in_segment_t(start, ptr - start));
+            storage_ctor('\0');
+
+            num_headers++;
+        }
+
+        string_t headers_storage = storage_ctor;
+
         // +1 for nullptr
-        const char *nv_send[nv.size + 3];
-        nv_send[0] = ":path";
+        const char *nv_send[nv_tmp.size() + num_headers + 1];
+        const char ** nv_ptr = nv_send;
+        std::copy(nv_tmp.begin(), nv_tmp.end(), nv_ptr);
+        nv_ptr += nv_tmp.size();
 
-        // Construct actual "path"
-        string_t::ctor_t cons(original_request.size());
-        cons(ptr, ptr.__chunk().size());
-        cons('\0');
-        string_t path = cons;
-        nv_send[1] = path.ptr();
+        // Propagate pointers into NV
+        const char *data = headers_storage.ptr();
+        start = headers_storage;
+        in_t::ptr_t tmp = start;
+        while (tmp.scan("\0", 1, limit)) {
+            *nv_ptr++ = data;
+            data += tmp - start + 1;
+            start = ++tmp;
+        }
 
-        memcpy(nv_send + 2, nv.items, nv.size * sizeof(nv.items[0]));
-        nv_send[nv.size + 2] = nullptr;
+        *nv_ptr = nullptr;
 
         int rv = framer->submit_request(0, nv_send, nullptr);
         if (rv != 0)
