@@ -1,5 +1,5 @@
-
-#include <vector>
+// Copyright (c) 2014 Yandex LLC. All rights reserved.
+// Author: Vasily Chekalkin <bacek@yandex-team.ru>
 
 #include <phantom/io_benchmark/method_stream/source.H>
 #include <phantom/module.H>
@@ -120,10 +120,14 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
             log_error("Meh!");
             return false;
         }
-        auto p = ptr.__chunk();
-        std::vector<char> ps { p.ptr(), p.ptr() + p.size() };
-        ps.push_back('\0');
-        nv_send[1] = ps.data();
+
+        // Construct actual "path"
+        string_t::ctor_t cons(original_request.size());
+        cons(ptr, ptr.__chunk().size());
+        cons('\0');
+        string_t path = cons;
+
+        nv_send[1] = path.ptr();
 
         //nv_send[1] = original_request
         std::copy(nv.items, nv.items + nv.size, nv_send + 2);
