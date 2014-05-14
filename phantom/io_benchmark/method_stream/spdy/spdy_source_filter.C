@@ -11,7 +11,6 @@
 #include "spdy_framer.H"
 
 #include <ctype.h>
-#include <vector>
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
@@ -131,7 +130,6 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
 
         // Parse generated request and produce SPDY request from it.
         // First line should be <method> <url> <version>
-        std::vector<const char*> nv_tmp;
         in_t::ptr_t start = ptr;
         size_t limit = 4096;  // Up to 4k URLs.
 
@@ -139,28 +137,17 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         // for now
         if(!ptr.scan(" ", 1, limit))
             throw exception_log_t(log::error, "Can't parse METHOD");
-        nv_tmp.push_back(":method");
         MKCSTR(method, in_segment_t(start, ptr - start));
-        nv_tmp.push_back(method);
 
         start = ++ptr;
         if(!ptr.scan(" ", 1, limit))
             throw exception_log_t(log::error, "Can't parse URL");
-
-        nv_tmp.push_back(":path");
         MKCSTR(path, in_segment_t(start, ptr - start));
-        nv_tmp.push_back(path);
 
         start = ++ptr;
         if(!ptr.scan("\n", 1, limit))
             throw exception_log_t(log::error, "Can't parse VERSION");
-        nv_tmp.push_back(":version");
         MKCSTR(version, in_segment_t(start, ptr - start));
-        nv_tmp.push_back(version);
-
-        // XXX
-        nv_tmp.push_back(":scheme");
-        nv_tmp.push_back("https");
 
         // Parse headers.
         // 1. Change to lower-case.
@@ -217,11 +204,15 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
 
         string_t headers_storage = storage_ctor;
 
+        // 8 for "standard" headers
         // +1 for nullptr
-        const char *nv_send[nv_tmp.size() + num_headers + 1];
-        const char ** nv_ptr = nv_send;
-        std::copy(nv_tmp.begin(), nv_tmp.end(), nv_ptr);
-        nv_ptr += nv_tmp.size();
+        const char *nv_send[8 + num_headers + 1];
+        nv_send[0] = ":method";     nv_send[1] = method;
+        nv_send[2] = ":version";    nv_send[3] = version;
+        nv_send[4] = ":path";       nv_send[5] = path;
+        nv_send[6] = ":scheme";     nv_send[7] = "https";
+
+        const char ** nv_ptr = nv_send + 8;
 
         // Propagate pointers into NV
         const char *data = headers_storage.ptr();
