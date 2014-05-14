@@ -124,9 +124,10 @@ void spdy_framer_t::on_ctrl_recv_callback(spdylay_session* UNUSED(session),
                 break;
             }
         }
-    } else if (type == SPDYLAY_GOAWAY) {
+    } else if (type == SPDYLAY_GOAWAY || type == SPDYLAY_RST_STREAM) {
         // It's not actually true. But it will work for now
         self->last_res_code_ = 500;
+        self->in_flight_requests_--;
     }
 }
 
