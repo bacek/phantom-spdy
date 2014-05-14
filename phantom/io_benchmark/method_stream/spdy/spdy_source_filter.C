@@ -47,8 +47,8 @@ private:
     ssize_t burst;
 
     // It's awful hack...
-    std::vector<char*> nv;
-    std::vector<std::vector<char>> nv_data;
+    std::vector<const char*> nv;
+    string_t nv_data_seg;
 };
 
 spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
@@ -57,10 +57,20 @@ spdy_source_filter_t::spdy_source_filter_t(string_t const& name,
       source(*config.source),
       burst(config.burst ? config.burst : 1) {
 
+    string_t::ctor_t cons(1024);
+
+    // Construct single buffer with all predefined headers.
     for (auto ptr = config.headers._ptr(); ptr; ++ptr) {
-        nv_data.emplace_back(ptr.val().ptr(), ptr.val().ptr() + ptr.val().size());
-        nv_data.rbegin()->push_back('\0');
-        nv.push_back(nv_data.back().data());
+        cons(ptr.val());
+        cons('\0');
+    }
+
+    nv_data_seg = cons;
+    const char* d = nv_data_seg.ptr();
+    // Copy pointers into nv
+    for (auto ptr = config.headers._ptr(); ptr; ++ptr) {
+        nv.push_back(d);
+        d += ptr.val().size() + 1;  // +1 for \0
     }
 }
 
