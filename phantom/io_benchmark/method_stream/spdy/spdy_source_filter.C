@@ -57,13 +57,6 @@ private:
 
 namespace {
 
-string_t make_cstr(const in_segment_t& segment) {
-    string_t::ctor_t cons(segment.size());
-    cons(segment);
-    cons('\0');
-    return cons;
-}
-
 // Aggregate all headers into single chunk of \0 separated values
 string_t aggregator(const config::list_t<string_t> &headers) {
     string_t::ctor_t cons(1024);
@@ -75,6 +68,65 @@ string_t aggregator(const config::list_t<string_t> &headers) {
     }
 
     return cons;
+}
+
+// Parse and aggregate headers into single storage
+// Parsed headers are handled in next way:
+// 1. Change to lower-case.
+// 2. Replace "Host" with ":host"
+// 3. Skip "Connection"
+// 4. Remember "Content-Length" to pass POST body (if any)
+string_t parse_headers(in_t::ptr_t& ptr, size_t& num_headers) {
+    size_t limit = 4096;
+    string_t::ctor_t storage_ctor(limit);
+
+    num_headers = 0;
+    while (true) {
+        in_t::ptr_t start = ++ptr;  // skip '\n' on previous line
+
+        // If it's empty line we have reached our destination
+        if ((*ptr == '\n') || ((*ptr == '\r') && *(ptr + (size_t)1) == '\n'))
+            break;
+
+        if(!ptr.scan(":", 1, limit))
+            throw exception_log_t(log::error, "Can't parse header name");
+
+        in_segment_t header(start, ptr - start);
+        MKCSTR(_header, header);
+        log_debug("Found header '%s'", _header);
+
+        in_t::ptr_t m = header;
+        if (m.match<lower_t>(CSTR("host"))) {
+            storage_ctor(CSTR(":host"));
+        } else if (m.match<lower_t>(CSTR("content-length"))) {
+            // Just skip it
+            if(!ptr.scan("\n", 1, limit))
+                throw exception_log_t(log::error, "Can't parse header value");
+            continue;
+        } else {
+            for (char *p = _header; *p; ++p) {
+                storage_ctor(tolower(*p));
+            }
+        }
+        storage_ctor('\0');
+
+        // Skip :
+        ++ptr;
+        // and spaces
+        while (ptr.match<ident_t>(' '))
+            ;
+        start = ptr;
+        if(!ptr.scan("\n", 1, limit))
+            throw exception_log_t(log::error, "Can't parse header value");
+        MKCSTR(value, in_segment_t(start, ptr - start));
+        log_debug("Found value '%s'", value);
+        storage_ctor(in_segment_t(start, ptr - start));
+        storage_ctor('\0');
+
+        num_headers++;
+    }
+
+    return storage_ctor;
 }
 
 }
@@ -149,60 +201,8 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
             throw exception_log_t(log::error, "Can't parse VERSION");
         MKCSTR(version, in_segment_t(start, ptr - start));
 
-        // Parse headers.
-        // 1. Change to lower-case.
-        // 2. Replace "Host" with ":host"
-        // 3. Skip "Connection"
-        // 4. Remember "Content-Length" to pass POST body (if any)
-        string_t::ctor_t storage_ctor(original_request.size());
-
-        size_t num_headers = 0;
-        while (true) {
-            start = ++ptr;  // skip '\n' on previous line
-
-            // If it's empty line we have reached our destination
-            if ((*ptr == '\n') || ((*ptr == '\r') && *(ptr + (size_t)1) == '\n'))
-                break;
-
-            if(!ptr.scan(":", 1, limit))
-                throw exception_log_t(log::error, "Can't parse header name");
-
-            in_segment_t header(start, ptr - start);
-            MKCSTR(_header, header);
-            log_debug("Found header '%s'", _header);
-
-            in_t::ptr_t m = header;
-            if (m.match<lower_t>(CSTR("host"))) {
-                storage_ctor(CSTR(":host"));
-            } else if (m.match<lower_t>(CSTR("content-length"))) {
-                // Just skip it
-                if(!ptr.scan("\n", 1, limit))
-                    throw exception_log_t(log::error, "Can't parse header value");
-                continue;
-            } else {
-                for (char *p = _header; *p; ++p) {
-                    storage_ctor(tolower(*p));
-                }
-            }
-            storage_ctor('\0');
-
-            // Skip :
-            ++ptr;
-            // and spaces
-            while (ptr.match<ident_t>(' '))
-                ;
-            start = ptr;
-            if(!ptr.scan("\n", 1, limit))
-                throw exception_log_t(log::error, "Can't parse header value");
-            MKCSTR(value, in_segment_t(start, ptr - start));
-            log_debug("Found value '%s'", value);
-            storage_ctor(in_segment_t(start, ptr - start));
-            storage_ctor('\0');
-
-            num_headers++;
-        }
-
-        string_t headers_storage = storage_ctor;
+        size_t num_headers;
+        string_t headers_storage = parse_headers(ptr, num_headers);
 
         // 8 for "standard" headers
         // +1 for nullptr
