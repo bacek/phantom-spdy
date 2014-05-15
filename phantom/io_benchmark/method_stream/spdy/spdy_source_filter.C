@@ -82,7 +82,8 @@ string_t parse_headers(in_t::ptr_t& ptr, size_t& num_headers) {
 
     num_headers = 0;
     while (true) {
-        in_t::ptr_t start = ++ptr;  // skip '\n' on previous line
+        ++ptr;
+        in_t::ptr_t start = ++ptr;  // skip '\r\n' on previous line
 
         // If it's empty line we have reached our destination
         if ((*ptr == '\n') || ((*ptr == '\r') && *(ptr + (size_t)1) == '\n'))
@@ -116,7 +117,7 @@ string_t parse_headers(in_t::ptr_t& ptr, size_t& num_headers) {
         while (ptr.match<ident_t>(' '))
             ;
         start = ptr;
-        if(!ptr.scan("\n", 1, limit))
+        if(!ptr.scan("\r\n", 1, limit))
             throw exception_log_t(log::error, "Can't parse header value");
         MKCSTR(value, in_segment_t(start, ptr - start));
         log_debug("Found value '%s'", value);
@@ -197,7 +198,7 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         MKCSTR(path, in_segment_t(start, ptr - start));
 
         start = ++ptr;
-        if(!ptr.scan("\n", 1, limit))
+        if(!ptr.scan("\r\n", 1, limit))
             throw exception_log_t(log::error, "Can't parse VERSION");
         MKCSTR(version, in_segment_t(start, ptr - start));
 
