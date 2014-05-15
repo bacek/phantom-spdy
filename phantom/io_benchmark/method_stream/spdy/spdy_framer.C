@@ -7,9 +7,45 @@
 
 #include <string.h>  // memset
 
+#include <vector>
+
 #include "spdy_misc.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
+
+namespace {
+
+struct stream_data_t {
+    inline stream_data_t(const in_segment_t &p) {
+        in_t::ptr_t ptr(p);
+        str_t s = ptr.__chunk();
+        std::copy(s.ptr(), s.ptr() + s.size(), std::back_inserter(post_data));
+    };
+
+    std::vector<char> post_data;
+};
+
+ssize_t read_callback(spdylay_session* UNUSED(session),
+                     int32_t UNUSED(stream_id),
+                     uint8_t* buf,
+                     size_t length,
+                     int* eof,
+                     spdylay_data_source* source,
+                     void* UNUSED(user_data)) {
+    stream_data_t *sd = (static_cast<stream_data_t*>(source->ptr));
+    if (sd->post_data.empty()) {
+        *eof = 1;
+        return 0;
+    }
+
+    size_t to_copy = std::min(length, sd->post_data.size());
+    memcpy(buf, sd->post_data.data(), to_copy);
+    sd->post_data.erase(sd->post_data.begin(), sd->post_data.begin() + to_copy);
+
+    return to_copy;
+}
+
+}
 
 spdy_framer_t::spdy_framer_t(const ssl_ctx_t& c)
     : spdy_version_(spdy3_1),
@@ -76,10 +112,18 @@ bool spdy_framer_t::send_data(in_segment_t &out) {
 }
 
 int spdy_framer_t::submit_request(uint8_t pri,
-                       const char **nv,
-                       void *stream_user_data) {
+                                  const char** nv,
+                                  const in_segment_t& post_body) {
+    stream_data_t* stream_data = nullptr;
+    spdylay_data_provider data_prd;
+    if (post_body) {
+        stream_data = new stream_data_t(post_body);
+        data_prd.source.ptr = stream_data;
+        data_prd.read_callback = read_callback;
+    }
     in_flight_requests_++;
-    return spdylay_submit_request(session_, pri, nv, nullptr, stream_user_data);
+    return spdylay_submit_request(
+        session_, pri, nv, stream_data ? &data_prd : nullptr, stream_data);
 }
 
 ssize_t spdy_framer_t::do_send(spdylay_session* UNUSED(session),
@@ -139,13 +183,16 @@ void spdy_framer_t::on_data_recv_callback(spdylay_session* UNUSED(session),
 }
 
 void spdy_framer_t::on_stream_close_callback(
-    spdylay_session* UNUSED(session),
+    spdylay_session* session,
     int32_t stream_id,
     spdylay_status_code status_code,
     void* user_data) {
     spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
     log_debug("SPDY: Session closed %d with code %d (%ld)", stream_id, status_code, self->in_flight_requests_);
 
+    stream_data_t *stream_data = static_cast<stream_data_t*>(
+            spdylay_session_get_stream_user_data(session, stream_id));
+    delete stream_data;
     self->in_flight_requests_--;
 }
 

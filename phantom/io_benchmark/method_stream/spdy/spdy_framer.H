@@ -48,7 +48,7 @@ public:
     // TODO: Wrap data_provider to glue in_segment_t to spdyaly
     int submit_request(uint8_t pri,
                        const char **nv,
-                       void *stream_user_data);
+                       const in_segment_t &post_body);
 
     // Amount of requests in flight right now
     inline ssize_t in_flight_requests() const {

@@ -82,7 +82,6 @@ string_t parse_headers(in_t::ptr_t& ptr, size_t& num_headers) {
 
     num_headers = 0;
     while (true) {
-        ++ptr;
         in_t::ptr_t start = ++ptr;  // skip '\r\n' on previous line
 
         // If it's empty line we have reached our destination
@@ -99,11 +98,6 @@ string_t parse_headers(in_t::ptr_t& ptr, size_t& num_headers) {
         in_t::ptr_t m = header;
         if (m.match<lower_t>(CSTR("host"))) {
             storage_ctor(CSTR(":host"));
-        } else if (m.match<lower_t>(CSTR("content-length"))) {
-            // Just skip it
-            if(!ptr.scan("\n", 1, limit))
-                throw exception_log_t(log::error, "Can't parse header value");
-            continue;
         } else {
             for (char *p = _header; *p; ++p) {
                 storage_ctor(tolower(*p));
@@ -117,7 +111,7 @@ string_t parse_headers(in_t::ptr_t& ptr, size_t& num_headers) {
         while (ptr.match<ident_t>(' '))
             ;
         start = ptr;
-        if(!ptr.scan("\r\n", 1, limit))
+        if(!ptr.scan("\r\n", 2, limit))
             throw exception_log_t(log::error, "Can't parse header value");
         MKCSTR(value, in_segment_t(start, ptr - start));
         log_debug("Found value '%s'", value);
@@ -198,16 +192,20 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         MKCSTR(path, in_segment_t(start, ptr - start));
 
         start = ++ptr;
-        if(!ptr.scan("\r\n", 1, limit))
+        if(!ptr.scan("\r\n", 2, limit))
             throw exception_log_t(log::error, "Can't parse VERSION");
         MKCSTR(version, in_segment_t(start, ptr - start));
 
         size_t num_headers;
         string_t headers_storage = parse_headers(ptr, num_headers);
 
+        // Skip last \r\n
+        ++ptr;
+        in_segment_t post_body(ptr, ptr.pending());
+
         // 8 for "standard" headers
         // +1 for nullptr
-        const char *nv_send[8 + num_headers + nv.size + 1];
+        const char *nv_send[8 + num_headers * 2 + nv.size + 1];
         nv_send[0] = ":method";     nv_send[1] = method;
         nv_send[2] = ":version";    nv_send[3] = version;
         nv_send[4] = ":path";       nv_send[5] = path;
@@ -230,7 +228,7 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
 
         *nv_ptr = nullptr;
 
-        int rv = framer->submit_request(0, nv_send, nullptr);
+        int rv = framer->submit_request(0, nv_send, post_body);
         if (rv != 0)
             return false;
     }
