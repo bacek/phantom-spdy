@@ -207,13 +207,16 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
 
         // 8 for "standard" headers
         // +1 for nullptr
-        const char *nv_send[8 + num_headers + 1];
+        const char *nv_send[8 + num_headers + nv.size + 1];
         nv_send[0] = ":method";     nv_send[1] = method;
         nv_send[2] = ":version";    nv_send[3] = version;
         nv_send[4] = ":path";       nv_send[5] = path;
         nv_send[6] = ":scheme";     nv_send[7] = "https";
 
+        // Copy configured headers
         const char ** nv_ptr = nv_send + 8;
+        memcpy(nv_ptr, nv.items, nv.size * sizeof(nv.items[0]));
+        nv_ptr += nv.size;
 
         // Propagate pointers into NV
         const char *data = headers_storage.ptr();
