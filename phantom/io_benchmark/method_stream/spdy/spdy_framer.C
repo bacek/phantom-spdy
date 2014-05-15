@@ -41,6 +41,7 @@ bool spdy_framer_t::start() {
     callbacks_.send_callback = &do_send;
     callbacks_.on_ctrl_recv_callback = &on_ctrl_recv_callback;
     callbacks_.on_data_recv_callback = &on_data_recv_callback;
+    callbacks_.on_stream_close_callback = &on_stream_close_callback;
 
     // TODO Add more callbacks
 
@@ -107,9 +108,6 @@ void spdy_framer_t::on_ctrl_recv_callback(spdylay_session* UNUSED(session),
         self->in_flight_requests_);
 
     if (type == SPDYLAY_SYN_REPLY) {
-        if (frame->syn_reply.hd.flags & SPDYLAY_CTRL_FLAG_FIN)
-            self->in_flight_requests_--;
-
         // Search for :status and extract it
         // Iterate over even headers.
         for (ssize_t i = 0; frame->syn_reply.nv[i]; i +=2 ) {
@@ -124,10 +122,6 @@ void spdy_framer_t::on_ctrl_recv_callback(spdylay_session* UNUSED(session),
                 break;
             }
         }
-    } else if (type == SPDYLAY_GOAWAY || type == SPDYLAY_RST_STREAM) {
-        // It's not actually true. But it will work for now
-        self->last_res_code_ = 500;
-        self->in_flight_requests_--;
     }
 }
 
@@ -142,8 +136,17 @@ void spdy_framer_t::on_data_recv_callback(spdylay_session* UNUSED(session),
             length,
             flags,
             self->in_flight_requests_);
-    if (flags & SPDYLAY_DATA_FLAG_FIN)
-        self->in_flight_requests_--;
+}
+
+void spdy_framer_t::on_stream_close_callback(
+    spdylay_session* UNUSED(session),
+    int32_t stream_id,
+    spdylay_status_code status_code,
+    void* user_data) {
+    spdy_framer_t* self = static_cast<spdy_framer_t*>(user_data);
+    log_debug("SPDY: Session closed %d with code %d (%ld)", stream_id, status_code, self->in_flight_requests_);
+
+    self->in_flight_requests_--;
 }
 
 }}}  // namespace phantom::io_benchmark::method_stream

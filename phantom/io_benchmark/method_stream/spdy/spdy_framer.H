@@ -88,6 +88,11 @@ protected:
                            int32_t stream_id,
                            int32_t length,
                            void* user_data);
+
+    static void on_stream_close_callback(spdylay_session* session,
+                                         int32_t stream_id,
+                                         spdylay_status_code status_code,
+                                         void* user_data);
 };
 
 }}}  // namespace phantom::io_benchmark::method_stream
