@@ -7,8 +7,6 @@
 
 #include <string.h>  // memset
 
-#include <vector>
-
 #include "spdy_misc.H"
 
 namespace phantom { namespace io_benchmark { namespace method_stream {
@@ -16,13 +14,13 @@ namespace phantom { namespace io_benchmark { namespace method_stream {
 namespace {
 
 struct stream_data_t {
-    inline stream_data_t(const in_segment_t &p) {
-        in_t::ptr_t ptr(p);
-        str_t s = ptr.__chunk();
-        std::copy(s.ptr(), s.ptr() + s.size(), std::back_inserter(post_data));
+    inline stream_data_t(const in_segment_t &p)
+        : post_data_str(in_t::ptr_t(p).__chunk()),
+          post_data_ptr(post_data_str) {
     };
 
-    std::vector<char> post_data;
+    str_t post_data_str;
+    str_t::ptr_t post_data_ptr;
 };
 
 ssize_t read_callback(spdylay_session* UNUSED(session),
@@ -33,14 +31,15 @@ ssize_t read_callback(spdylay_session* UNUSED(session),
                      spdylay_data_source* source,
                      void* UNUSED(user_data)) {
     stream_data_t *sd = (static_cast<stream_data_t*>(source->ptr));
-    if (sd->post_data.empty()) {
+    if (!sd->post_data_ptr) {
         *eof = 1;
         return 0;
     }
 
-    size_t to_copy = std::min(length, sd->post_data.size());
-    memcpy(buf, sd->post_data.data(), to_copy);
-    sd->post_data.erase(sd->post_data.begin(), sd->post_data.begin() + to_copy);
+    size_t to_copy = min(length, sd->post_data_ptr.size());
+    out_t out((char*)buf, to_copy);
+    out(sd->post_data_ptr);
+    sd->post_data_ptr += to_copy;
 
     return to_copy;
 }
