@@ -152,9 +152,7 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
 
     // If it's fresh framer - start it.
     if (!framer->is_started()) {
-        tag = STRING("*skip*");
         framer->start();
-        return framer->send_data(request);
     }
 
     // Submit N requests
