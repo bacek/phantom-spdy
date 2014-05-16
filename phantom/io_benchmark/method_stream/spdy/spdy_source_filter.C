@@ -82,6 +82,7 @@ string_t parse_headers(in_t::ptr_t& ptr, size_t& num_headers) {
 
     num_headers = 0;
     while (true) {
+        if (*ptr == '\r') ++ptr;
         in_t::ptr_t start = ++ptr;  // skip '\r\n' on previous line
 
         // If it's empty line we have reached our destination
@@ -200,6 +201,7 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
         string_t headers_storage = parse_headers(ptr, num_headers);
 
         // Skip last \r\n
+        if (*ptr == '\r') ++ptr;
         ++ptr;
         in_segment_t post_body(ptr, ptr.pending());
 
