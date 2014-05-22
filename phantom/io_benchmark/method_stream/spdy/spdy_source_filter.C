@@ -12,6 +12,8 @@
 
 #include <ctype.h>
 
+#include "spdy_misc.H"
+
 namespace phantom { namespace io_benchmark { namespace method_stream {
 
 // Class to filter source data into SPDY request frames
@@ -46,6 +48,8 @@ public:
     inline ~spdy_source_filter_t() {}
 
 private:
+	bool generate_request(in_segment_t &request, in_segment_t &tag) const;
+
     source_t& source;
     ssize_t burst;
 
@@ -146,7 +150,7 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
     auto* framer = spdy_transport_t::current_framer();
     // Wait for framer.
     if (!framer) {
-        tag = STRING("*skip*");
+        //tag = STRING("*skip*");
         return true;
     }
 
@@ -156,86 +160,101 @@ bool spdy_source_filter_t::get_request(in_segment_t& request,
     }
 
     // Submit N requests
-    while (framer->in_flight_requests() < burst) {
-        in_segment_t original_request;
-        if (!source.get_request(original_request, tag)) {
-            // Wait for already in flight requests to finish
-            log_debug("SPDY: original source is exhausted (%ld)", framer->in_flight_requests());
-            if (framer->in_flight_requests())
-                return framer->send_data(request);
-            else
+    if (burst) {
+        while (framer->in_flight_requests() < burst) {
+            if (!generate_request(request, tag))
                 return false;
         }
-
-        in_t::ptr_t ptr = original_request;
-        // Meh. operator bool actually initialize ptr...
-        if (!ptr) {
-            log_error("Meh!");
-            return false;
-        }
-
-        // Parse generated request and produce SPDY request from it.
-        // First line should be <method> <url> <version>
-        in_t::ptr_t start = ptr;
-        size_t limit = 4096;  // Up to 4k URLs.
-
-        // We should switch to be able to send DATA frames. But this will work
-        // for now
-        if(!ptr.scan(" ", 1, limit))
-            throw exception_log_t(log::error, "Can't parse METHOD");
-        MKCSTR(method, in_segment_t(start, ptr - start));
-
-        start = ++ptr;
-        if(!ptr.scan(" ", 1, limit))
-            throw exception_log_t(log::error, "Can't parse URL");
-        MKCSTR(path, in_segment_t(start, ptr - start));
-
-        start = ++ptr;
-        if(!ptr.scan("\r\n", 2, limit))
-            throw exception_log_t(log::error, "Can't parse VERSION");
-        MKCSTR(version, in_segment_t(start, ptr - start));
-
-        size_t num_headers;
-        string_t headers_storage = parse_headers(ptr, num_headers);
-
-        // Skip last \r\n
-        if (*ptr == '\r') ++ptr;
-        ++ptr;
-        in_segment_t post_body(ptr, ptr.pending());
-
-        // 8 for "standard" headers
-        // +1 for nullptr
-        const char *nv_send[8 + num_headers * 2 + nv.size + 1];
-        nv_send[0] = ":method";     nv_send[1] = method;
-        nv_send[2] = ":version";    nv_send[3] = version;
-        nv_send[4] = ":path";       nv_send[5] = path;
-        nv_send[6] = ":scheme";     nv_send[7] = "https";
-
-        // Copy configured headers
-        const char ** nv_ptr = nv_send + 8;
-        memcpy(nv_ptr, nv.items, nv.size * sizeof(nv.items[0]));
-        nv_ptr += nv.size;
-
-        // Propagate pointers into NV
-        const char *data = headers_storage.ptr();
-        start = headers_storage;
-        in_t::ptr_t tmp = start;
-        while (tmp.scan("\0", 1, limit)) {
-            *nv_ptr++ = data;
-            data += tmp - start + 1;
-            start = ++tmp;
-        }
-
-        *nv_ptr = nullptr;
-
-        int rv = framer->submit_request(0, nv_send, post_body);
-        if (rv != 0)
+    } else {
+        if (!generate_request(request, tag))
             return false;
     }
 
     return framer->send_data(request);
 }
 
+
+bool spdy_source_filter_t::generate_request(in_segment_t &request, in_segment_t &tag) const {
+    auto* framer = spdy_transport_t::current_framer();
+    assert(framer);
+
+    in_segment_t original_request;
+    if (!source.get_request(original_request, tag)) {
+        // Wait for already in flight requests to finish
+        log_debug("SPDY: original source is exhausted (%ld)", framer->in_flight_requests());
+        if (framer->in_flight_requests())
+            return framer->send_data(request);
+        else
+            return false;
+    }
+
+    in_t::ptr_t ptr = original_request;
+    // Meh. operator bool actually initialize ptr...
+    if (!ptr) {
+        log_error("Meh!");
+        return false;
+    }
+
+    // Parse generated request and produce SPDY request from it.
+    // First line should be <method> <url> <version>
+    in_t::ptr_t start = ptr;
+    size_t limit = 4096;  // Up to 4k URLs.
+
+    // We should switch to be able to send DATA frames. But this will work
+    // for now
+    if(!ptr.scan(" ", 1, limit))
+        throw exception_log_t(log::error, "Can't parse METHOD");
+    MKCSTR(method, in_segment_t(start, ptr - start));
+
+    start = ++ptr;
+    if(!ptr.scan(" ", 1, limit))
+        throw exception_log_t(log::error, "Can't parse URL");
+    MKCSTR(path, in_segment_t(start, ptr - start));
+
+    start = ++ptr;
+    if(!ptr.scan("\r\n", 2, limit))
+        throw exception_log_t(log::error, "Can't parse VERSION");
+    MKCSTR(version, in_segment_t(start, ptr - start));
+
+    size_t num_headers;
+    string_t headers_storage = parse_headers(ptr, num_headers);
+
+    // Skip last \r\n
+    if (*ptr == '\r') ++ptr;
+    ++ptr;
+    in_segment_t post_body(ptr, ptr.pending());
+
+    // 8 for "standard" headers
+    // +1 for nullptr
+    const char *nv_send[8 + num_headers * 2 + nv.size + 1];
+    nv_send[0] = ":method";     nv_send[1] = method;
+    nv_send[2] = ":version";    nv_send[3] = version;
+    nv_send[4] = ":path";       nv_send[5] = path;
+    nv_send[6] = ":scheme";     nv_send[7] = "https";
+
+    // Copy configured headers
+    const char ** nv_ptr = nv_send + 8;
+    memcpy(nv_ptr, nv.items, nv.size * sizeof(nv.items[0]));
+    nv_ptr += nv.size;
+
+    // Propagate pointers into NV
+    const char *data = headers_storage.ptr();
+    start = headers_storage;
+    in_t::ptr_t tmp = start;
+    while (tmp.scan("\0", 1, limit)) {
+        *nv_ptr++ = data;
+        data += tmp - start + 1;
+        start = ++tmp;
+    }
+
+    *nv_ptr = nullptr;
+
+    int rv = framer->submit_request(0, nv_send, post_body);
+    if (rv != 0)
+        return false;
+
+    return true;
+}
 
 void spdy_source_filter_t::config_t::check(in_t::ptr_t const &ptr) const {
     if (!source)
