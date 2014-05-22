@@ -81,6 +81,14 @@ bool spdy_framer_t::start() {
     // TODO Add more callbacks
 
     int rv = spdylay_session_client_new(&session_, spdy_version_, &callbacks_, this);
+    if (rv != 0)
+        return false;
+
+    // Change WINDOW_SIZE to bloody large one to avoid additional control frames
+    spdylay_settings_entry settings[] = {
+        { SPDYLAY_SETTINGS_INITIAL_WINDOW_SIZE, 0, (1<<30U) - 1}
+    };
+    rv = spdylay_submit_settings(session_, 0, settings, 1);
     return rv == 0;
 }
 
