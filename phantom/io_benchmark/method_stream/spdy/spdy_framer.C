@@ -94,7 +94,7 @@ bool spdy_framer_t::start() {
 
 
 bool spdy_framer_t::receive_data(in_t::ptr_t& in, unsigned int& res_code) {
-    last_res_code_ = 0;
+    last_res_code_ = 100;  // Fake "100 Continue"
     if (!in)
         return false;
     str_t s = in.__chunk();
