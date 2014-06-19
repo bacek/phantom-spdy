@@ -22,14 +22,14 @@ Example configuration is available in [examples/io_benchmark_method_stream_proto
 
 `spdy_transport_t` accepts next parameters
 
-* `protos` - list of protocols to negotiate via NPN.
+* `protos` - list of protocols to negotiate via NPN. Example:
 
-Example:
-
-        # Special SPDY transport
-        transport_t ssl_transport = spdy_transport_t {
-            protos = { "spdy/3.1" "spdy/3" "spdy/2" }
-        }
+```
+    # Special SPDY transport
+    transport_t ssl_transport = spdy_transport_t {
+        protos = { "spdy/3.1" "spdy/3" "spdy/2" }
+    }
+```
 
 ### spdy_source_filter_t
 
@@ -46,24 +46,26 @@ Parameters:
 
 Example:
 
-        source_t source_log = source_log_t {
-            filename = "ammo.stpd"
+```
+    source_t source_log = source_log_t {
+        filename = "ammo.stpd"
+    }
+
+    source_t spdy_source = spdy_source_filter_t {
+        # Original URLs source.
+        source = source_log
+
+        # Amount of parallel requests in single connection
+        burst = 1
+
+        # Predefined set of headers to send.
+        # spdy_source_filter_t will append :path from .source
+        headers = {
+            "accept-encoding"   "gzip,deflate"
+            "accept"            "*/*"
         }
-
-        source_t spdy_source = spdy_source_filter_t {
-            # Original URLs source.
-            source = source_log
-
-            # Amount of parallel requests in single connection
-            burst = 1
-
-            # Predefined set of headers to send.
-            # spdy_source_filter_t will append :path from .source
-            headers = {
-                "accept-encoding"   "gzip,deflate"
-                "accept"            "*/*"
-            }
-        }
+    }
+```
 
 ### spdy_proto_t
 
