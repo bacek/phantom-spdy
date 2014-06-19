@@ -16,7 +16,7 @@ This module requires latest version of Phantom with [NPN support patch](https://
 
 ## Configuration
 
-Example configuration is available in [examples/io_benchmark_method_stream_proto_http.conf]
+Example configuration is available in [https://github.com/bacek/phantom-spdy/blob/master/examples/io_benchmark_method_stream_proto_http.conf]
 
 ### spdy_transport_t
 
