@@ -6,7 +6,7 @@ SPDY module for Phantom.
 
 SPDY Phantom plugin contains few elements to work with SPDY servers.
 
-This module requires latest version of Phantom with [NPN support patch][https://github.com/mamchits/phantom/pull/9]
+This module requires latest version of Phantom with [NPN support patch](https://github.com/mamchits/phantom/pull/9)
 
 * spdy_transport_t to establish SPDY connection and negotiate protocol to
   use.
@@ -22,12 +22,14 @@ Example configuration is available in examples/io_benchmark_method_stream_proto_
 
 spdy_transport_t accepts next parameters
 
-* protos - list of protocols to negotiate via NPN. Example:
+* protos - list of protocols to negotiate via NPN.
 
-    # Special SPDY transport
-    transport_t ssl_transport = spdy_transport_t {
-        protos = { "spdy/3.1" "spdy/3" "spdy/2" }
-    }
+Example:
+
+        # Special SPDY transport
+        transport_t ssl_transport = spdy_transport_t {
+            protos = { "spdy/3.1" "spdy/3" "spdy/2" }
+        }
 
 ### spdy_source_filter_t
 
@@ -73,15 +75,15 @@ configuration.
 
 ### spdylay
 
-SPDY support is implement in [spdylay module][https://github.com/tatsuhiro-t/spdylay]. So you have to install it
+SPDY support is implement in [spdylay module](https://github.com/tatsuhiro-t/spdylay). So you have to install it
 first.
 
 ### Phantom
 
-Get latest source of [Phantom][https://github.com/mamchits/phantom], apply patch
+Get latest source of [Phantom](https://github.com/mamchits/phantom), apply patch
 for NPN negotiation, build and install.
 
-Alternatively grab sources from [my fork][https://github.com/bacek/phantom/tree/spdy_support_2]
+Alternatively grab sources from [my fork](https://github.com/bacek/phantom/tree/spdy_support_2)
 
 ### Module it self
 
