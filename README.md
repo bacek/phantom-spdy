@@ -75,8 +75,7 @@ configuration.
 
 ### spdylay
 
-SPDY support is implement in [spdylay module](https://github.com/tatsuhiro-t/spdylay). So you have to install it
-first.
+SPDY support is implemented by [spdylay module](https://github.com/tatsuhiro-t/spdylay). So you have to install it first.
 
 ### Phantom
 
