@@ -8,11 +8,11 @@ SPDY Phantom plugin contains few elements to work with SPDY servers.
 
 This module requires latest version of Phantom with [NPN support patch](https://github.com/mamchits/phantom/pull/9)
 
-* spdy_transport_t to establish SPDY connection and negotiate protocol to
+* `spdy_transport_t` to establish SPDY connection and negotiate protocol to
   use.
-* spdy_source_filter_t to parse original HTTP requests and convert it to
+* `spdy_source_filter_t` to parse original HTTP requests and convert it to
   SPDY frames.
-* spdy_proto_t to do handle responses from SPDY servers.
+* `spdy_proto_t` to do handle responses from SPDY servers.
 
 ## Configuration
 
@@ -20,9 +20,9 @@ Example configuration is available in [examples/io_benchmark_method_stream_proto
 
 ### spdy_transport_t
 
-spdy_transport_t accepts next parameters
+`spdy_transport_t` accepts next parameters
 
-* protos - list of protocols to negotiate via NPN.
+* `protos` - list of protocols to negotiate via NPN.
 
 Example:
 
@@ -33,16 +33,16 @@ Example:
 
 ### spdy_source_filter_t
 
-spdy_source_filter_t converts original HTTP requests into SPDY frames
+`spdy_source_filter_t` converts original HTTP requests into SPDY frames
 
 Parameters:
 
-* source - mandatory parameter for original requests. Can be anything supported
+* `source` - mandatory parameter for original requests. Can be anything supported
   by Phantom. For example source_log_t which parses file with requests.
 
-* burst - amount of in-flight requests to produce. Default 1.
+* `burst` - amount of in-flight requests to produce. Default 1.
 
-* headers - list of additional headers to add to each request.
+* `headers` - list of additional headers to add to each request.
 
 Example:
 
@@ -67,7 +67,7 @@ Example:
 
 ### spdy_proto_t
 
-spdy_proto_t parse responses from SPDY server and doesn't require any
+`spdy_proto_t` parse responses from SPDY server and doesn't require any
 configuration.
 
 
